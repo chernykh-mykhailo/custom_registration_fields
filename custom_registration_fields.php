@@ -98,6 +98,7 @@ class Custom_registration_fields extends Module
             'is_professional' => 'TINYINT(1) DEFAULT 0',
             'ragione_sociale' => 'VARCHAR(255) DEFAULT NULL',
             'piva' => 'VARCHAR(255) DEFAULT NULL',
+            'phone' => 'VARCHAR(32) DEFAULT NULL',
             'google_id' => 'VARCHAR(255) DEFAULT NULL',
         ];
 
@@ -125,7 +126,7 @@ class Custom_registration_fields extends Module
 
         if (Tools::isSubmit('submit' . $this->name)) {
             $id_country = (int)Tools::getValue('id_country');
-            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva'];
+            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva', 'phone', 'address1', 'city', 'postcode'];
             
             $enabled_prof = [];
             $required_prof = [];
@@ -219,6 +220,10 @@ class Custom_registration_fields extends Module
             ['id' => 'codice_destinatario', 'name' => $this->l('Codice Destinatario')],
             ['id' => 'ragione_sociale', 'name' => $this->l('Ragione Sociale')],
             ['id' => 'piva', 'name' => $this->l('P.IVA')],
+            ['id' => 'phone', 'name' => $this->l('Telephone')],
+            ['id' => 'address1', 'name' => $this->l('Address')],
+            ['id' => 'city', 'name' => $this->l('City')],
+            ['id' => 'postcode', 'name' => $this->l('Postcode')],
         ];
 
         $fields_form_general = [
@@ -373,6 +378,7 @@ class Custom_registration_fields extends Module
         
         Media::addJsDef([
             'crf_ajax_url' => $this->context->link->getModuleLink($this->name, 'ajax'),
+            'crf_default_country' => (int)Configuration::get('PS_COUNTRY_DEFAULT'),
         ]);
     }
 
@@ -399,7 +405,21 @@ class Custom_registration_fields extends Module
             ->addAvailableValue(1, $this->l('Professionista'))
             ->setValue(0);
 
-        // 2. Professional/Custom Fields
+        // 2. Country Selector (Restored because the shop works with multiple countries)
+        $countries = Country::getCountries($id_lang, true);
+        $countryField = (new FormField())
+            ->setName('id_country')
+            ->setType('select')
+            ->setLabel($this->l('Country'))
+            ->setRequired(true)
+            ->setValue(Configuration::get('PS_COUNTRY_DEFAULT'));
+        
+        foreach ($countries as $c) {
+            $countryField->addAvailableValue($c['id_country'], $c['name']);
+        }
+        $fields[] = $countryField;
+
+        // 3. Professional/Custom Fields
         $fields[] = (new FormField())
             ->setName('ragione_sociale')
             ->setType('text')
@@ -429,6 +449,30 @@ class Custom_registration_fields extends Module
             ->setType('text')
             ->setRequired(in_array('codice_destinatario', $req_priv))
             ->setLabel($this->l('Codice destinatario (opzionale)'));
+
+        $fields[] = (new FormField())
+            ->setName('phone')
+            ->setType('text')
+            ->setRequired(in_array('phone', $req_priv))
+            ->setLabel($this->l('Telephone'));
+
+        $fields[] = (new FormField())
+            ->setName('address1')
+            ->setType('text')
+            ->setRequired(in_array('address1', $req_priv))
+            ->setLabel($this->l('Address'));
+
+        $fields[] = (new FormField())
+            ->setName('city')
+            ->setType('text')
+            ->setRequired(in_array('city', $req_priv))
+            ->setLabel($this->l('City'));
+
+        $fields[] = (new FormField())
+            ->setName('postcode')
+            ->setType('text')
+            ->setRequired(in_array('postcode', $req_priv))
+            ->setLabel($this->l('Postcode'));
 
         return $fields;
     }
@@ -476,6 +520,7 @@ class Custom_registration_fields extends Module
         $customer->pec = Tools::getValue('pec');
         $customer->codice_destinatario = Tools::getValue('codice_destinatario');
         $customer->piva = Tools::getValue('piva');
+        $customer->phone = Tools::getValue('phone');
         
         // Handle Group Assignment
         $id_group = 1; // Default
@@ -494,6 +539,30 @@ class Custom_registration_fields extends Module
             $customer->addGroups([$id_group]);
         } else {
             $customer->update();
+        }
+
+        // Create Address if address fields are provided
+        $address1 = Tools::getValue('address1');
+        if (!empty($address1)) {
+            $id_country = (int)Tools::getValue('id_country');
+            if (!$id_country) {
+                $id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT');
+            }
+
+            $address = new Address();
+            $address->id_customer = (int)$customer->id;
+            $address->id_country = $id_country;
+            $address->alias = $this->l('My Address');
+            $address->lastname = $customer->lastname;
+            $address->firstname = $customer->firstname;
+            $address->address1 = $address1;
+            $address->city = Tools::getValue('city');
+            $address->postcode = Tools::getValue('postcode');
+            $address->phone = Tools::getValue('phone');
+            $address->company = Tools::getValue('ragione_sociale');
+            $address->vat_number = Tools::getValue('piva');
+            $address->dni = Tools::getValue('codice_fiscale');
+            $address->add();
         }
     }
 
@@ -514,6 +583,7 @@ class Custom_registration_fields extends Module
                 'piva' => $customer->piva,
                 'pec' => $customer->pec,
                 'codice_destinatario' => $customer->codice_destinatario,
+                'phone' => $customer->phone,
             ],
         ]);
 
@@ -568,6 +638,30 @@ class Custom_registration_fields extends Module
             'required' => false,
             'data' => $customer->codice_destinatario,
         ]);
+
+        $formBuilder->add('phone', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
+            'label' => $this->l('Telephone'),
+            'required' => false,
+            'data' => $customer->phone,
+        ]);
+
+        $formBuilder->add('address1', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
+            'label' => $this->l('Address'),
+            'required' => false,
+            'data' => '', // Address is not directly on customer, will be handled by address form
+        ]);
+
+        $formBuilder->add('city', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
+            'label' => $this->l('City'),
+            'required' => false,
+            'data' => '', // Address is not directly on customer, will be handled by address form
+        ]);
+
+        $formBuilder->add('postcode', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
+            'label' => $this->l('Postcode'),
+            'required' => false,
+            'data' => '', // Address is not directly on customer, will be handled by address form
+        ]);
     }
 
     public function hookActionAfterCreateCustomerFormHandler($params)
@@ -593,6 +687,7 @@ class Custom_registration_fields extends Module
             $customer->piva = $formData['piva'];
             $customer->pec = $formData['pec'];
             $customer->codice_destinatario = $formData['codice_destinatario'];
+            $customer->phone = $formData['phone'];
             $customer->update();
         }
     }
