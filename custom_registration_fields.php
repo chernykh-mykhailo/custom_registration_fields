@@ -158,7 +158,7 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('CRF_GROUP_PRIVATE', (int)Tools::getValue('CRF_GROUP_PRIVATE'));
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
-            Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_DI'));
+            Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_SDI'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -282,7 +282,7 @@ class Custom_registration_fields extends Module
                     [
                         'type' => 'switch',
                         'label' => $this->l('Require PEC or Codice Destinatario'),
-                        'name' => 'CRF_REQ_PEC_OR_DI',
+                        'name' => 'CRF_REQ_PEC_OR_SDI',
                         'is_bool' => true,
                         'values' => [
                             ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
@@ -372,9 +372,10 @@ class Custom_registration_fields extends Module
         $helper->fields_value['id_country'] = $default_country;
         $helper->fields_value['GOOGLE_CLIENT_ID'] = Configuration::get('GOOGLE_CLIENT_ID');
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
+        $helper->fields_value['CRF_GROUP_PRIVATE'] = Configuration::get('CRF_GROUP_PRIVATE');
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
         $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
-        $helper->fields_value['CRF_REQ_PEC_OR_DI'] = Configuration::get('CRF_REQ_PEC_OR_SDI');
+        $helper->fields_value['CRF_REQ_PEC_OR_SDI'] = Configuration::get('CRF_REQ_PEC_OR_SDI');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
