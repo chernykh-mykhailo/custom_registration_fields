@@ -56,6 +56,8 @@ $(document).ready(function () {
                 const enabledFields = isProf ? settings.enabled : settings.enabled_private;
                 const requiredFields = isProf ? settings.required : settings.required_private;
 
+                let addressFieldsVisible = false;
+
                 if (enabledFields && Array.isArray(enabledFields)) {
                     enabledFields.forEach(field => {
                         const $row = $fields[field];
@@ -80,8 +82,21 @@ $(document).ready(function () {
                                 const newLabel = isProf ? crf_labels.cf_prof : crf_labels.cf_private;
                                 $row.find('.form-control-label').text(newLabel);
                             }
+
+                            if (['address1', 'city', 'postcode', 'id_state'].includes(field)) {
+                                addressFieldsVisible = true;
+                            }
                         }
                     });
+                }
+
+                // Handle Address Section Header via JS Injection
+                $('.crf-section-header-js').remove();
+                if (addressFieldsVisible) {
+                    const $addr1Row = $fields['address1'];
+                    if ($addr1Row && $addr1Row.length) {
+                        $addr1Row.before('<div class="crf-section-header-js">Indirizzo di spedizione</div>');
+                    }
                 }
 
                 // 2. Populate states (provinces)
@@ -106,7 +121,12 @@ $(document).ready(function () {
                             $stateSelect.select2({
                                 placeholder: "Seleziona provincia",
                                 allowClear: true,
-                                width: '100%'
+                                width: '100%',
+                                language: {
+                                    noResults: function () {
+                                        return "Nessuna provincia trovata";
+                                    }
+                                }
                             });
                         }
                     } else {
@@ -125,7 +145,7 @@ $(document).ready(function () {
                     const $sdiRow = $fields['codice_destinatario'];
 
                     if (($pecRow && $pecRow.hasClass('crf-visible')) || ($sdiRow && $sdiRow.hasClass('crf-visible'))) {
-                        const noteText = 'Almeno uno tra PEC e Codice Destinatario è obbligatorio.';
+                        const noteText = 'Almeno uno tra PEC e Codice Destinatario є obbligatorio.';
                         $pecRow.before('<div class="crf-invoicing-note">' + noteText + '</div>');
                     }
                 }

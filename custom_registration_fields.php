@@ -458,8 +458,8 @@ class Custom_registration_fields extends Module
         $this->context->controller->addCSS($this->_path . 'views/css/custom_registration_fields.css');
         
         // Add Select2 for searchable dropdowns
-        $this->context->controller->addCSS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 'all', null, false);
         $this->context->controller->addJS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', false);
+        $this->context->controller->addCSS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 'all', null, false);
 
         Media::addJsDef([
             'crf_ajax_url' => $this->context->link->getModuleLink($this->name, 'ajax'),

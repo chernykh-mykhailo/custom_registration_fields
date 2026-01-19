@@ -29,54 +29,72 @@
     display: flex !important;
 }
 
+/* Section Header Styling via JS */
+.crf-section-header-js {
+    width: 100% !important;
+    border-bottom: 2px solid #2fb5d2 !important;
+    margin-top: 35px !important;
+    margin-bottom: 25px !important;
+    margin-left: 10px !important;
+    margin-right: 10px !important;
+    padding-bottom: 10px !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    color: #232323 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.5px !important;
+    flex: 0 0 calc(100% - 20px) !important;
+}
+
 /* Form Rows & Pairs */
 #customer-form .form-group.row,
 #customer-form .form-control-row {
     margin-bottom: 20px !important;
     display: flex !important;
     flex-wrap: wrap !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     width: 100% !important;
     padding: 0 10px !important;
     flex: 0 0 100% !important;
 }
 
-/* Desktop Pairs */
+/* Desktop Pairs - FORCE SIDE BY SIDE */
 @media (min-width: 768px) {
 
     #customer-form .form-control-row[data-field-name="phone"],
+    #customer-form .form-control-row[data-field-name="pec"] {
+        width: 50% !important;
+        flex: 0 0 50% !important;
+        padding-right: 10px !important;
+    }
+
     #customer-form .form-control-row[data-field-name="phone_mobile"],
-    #customer-form .form-control-row[data-field-name="pec"],
     #customer-form .form-control-row[data-field-name="codice_destinatario"] {
         width: 50% !important;
         flex: 0 0 50% !important;
+        padding-left: 10px !important;
     }
 
-    #customer-form .form-control-label {
-        text-align: left !important;
-        padding-right: 15px !important;
-        font-weight: 600 !important;
+    /* Labels on top for custom fields to save space */
+    #customer-form .form-control-row .form-control-label {
         width: 100% !important;
-        margin-bottom: 5px !important;
+        text-align: left !important;
+        padding-right: 0 !important;
+        margin-bottom: 8px !important;
+        font-weight: 600 !important;
     }
 
-    /* Adjust for paired fields labels */
-    .form-control-row[data-field-name="phone"] .form-control-label,
-    .form-control-row[data-field-name="phone_mobile"] .form-control-label,
-    .form-control-row[data-field-name="pec"] .form-control-label,
-    .form-control-row[data-field-name="codice_destinatario"] .form-control-label {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    #customer-form .form-control-row .col-md-6,
+    #customer-form .form-control-row .col-md-9 {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
     }
+}
 
-    /* Hide Optional text for paired fields to save space */
-    .form-control-row[data-field-name="phone"] .form-control-comment,
-    .form-control-row[data-field-name="phone_mobile"] .form-control-comment,
-    .form-control-row[data-field-name="pec"] .form-control-comment,
-    .form-control-row[data-field-name="codice_destinatario"] .form-control-comment {
-        display: none !important;
-    }
+/* Hide "Opzionale" text for custom fields as requested */
+#customer-form .form-control-row .form-control-comment {
+    display: none !important;
 }
 
 /* Special Note for Invoicing */
@@ -97,9 +115,10 @@
     flex-direction: row !important;
     gap: 20px !important;
     padding-top: 5px !important;
+    width: 100% !important;
 }
 
-/* Style the radio options more like buttons or cleaner links */
+/* Style the radio options */
 .custom-radio>label {
     display: inline-flex !important;
     align-items: center !important;
@@ -153,11 +172,41 @@
 .select2-container--default .select2-selection--single {
     display: flex !important;
     align-items: center !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    height: 45px !important;
+    background-color: #fff !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 43px !important;
+    padding-left: 12px !important;
+    color: #333 !important;
 }
 
 .select2-container--default .select2-selection--single .select2-selection__arrow {
     height: 43px !important;
+    right: 10px !important;
 }
+
+.select2-dropdown {
+    border: 1px solid #2fb5d2 !important;
+    border-radius: 0 0 6px 6px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    z-index: 9999 !important;
+}
+
+.select2-search--dropdown .select2-search__field {
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 6px 10px !important;
+    outline: none !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #2fb5d2 !important;
+}
+
 
 /* Mobile Optimizations */
 @media (max-width: 767px) {
