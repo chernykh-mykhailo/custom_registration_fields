@@ -1,49 +1,68 @@
-/**
- * 2007-2026 PrestaShop
- * Custom Registration Fields Styling - Premium & Responsive
- */
-
-/* Form Row Layout */
-#customer-form .form-control-row {
-    margin-bottom: 20px;
-    display: flex !important;
+/* Form Layout - Two columns on Desktop */
+#customer-form section {
+    display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
-    padding: 10px 0;
+    gap: 0;
+    margin: 0 -15px;
 }
 
-/* Specific styling for the Account Type row to match screenshot */
+#customer-form .form-control-row {
+    margin-bottom: 25px;
+    display: flex !important;
+    flex-wrap: wrap;
+    flex-direction: column;
+    /* Label above input */
+    align-items: flex-start;
+    padding: 0 15px;
+    width: 50%;
+    /* Two fields per row */
+    box-sizing: border-box;
+}
+
+/* Full width rows for specific fields */
+#customer-form .form-control-row:has(input[name="is_professional"]),
+#customer-form .form-control-row:has(input[name="email"]),
+#customer-form .form-control-row:has(input[name="password"]),
+#customer-form .form-control-row.crf-full-width {
+    width: 100%;
+}
+
+/* Specific styling for the Account Type row */
 #customer-form .form-control-row:has(input[name="is_professional"]) {
-    background: #f0f0f0;
-    padding: 20px;
-    margin-left: -20px;
-    margin-right: -20px;
+    background: #f8f9fa;
+    padding: 25px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 #customer-form .form-control-label {
     text-transform: uppercase;
     font-weight: 700;
-    font-size: 14px;
-    color: #333;
-    width: 35%;
-    margin-bottom: 0px;
-    padding-top: 12px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: #444;
+    width: 100% !important;
+    margin-bottom: 8px;
+    padding-top: 0;
+    text-align: left;
 }
 
 #customer-form .form-control-val {
-    width: 65%;
+    width: 100% !important;
 }
 
 /* Input Styling */
 #customer-form .form-control {
-    border: 1px solid #e1e1e1;
-    border-radius: 4px;
-    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 14px 18px;
     font-size: 15px;
     background: #fff;
     color: #333;
     box-shadow: none;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     height: auto;
     width: 100%;
 }
@@ -51,16 +70,19 @@
 #customer-form .form-control:focus {
     border-color: #004595;
     background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 69, 149, 0.1);
 }
 
 /* Radio Buttons Container */
 #customer-form .form-control-val .custom-radio {
     display: flex;
-    flex-direction: column;
-    gap: 15px;
+    flex-direction: row;
+    /* Radio buttons side by side */
+    gap: 30px;
+    margin-top: 5px;
 }
 
-/* Radio Button Styling to match screenshot */
+/* Radio Button Styling */
 #customer-form .radio-field,
 #customer-form .custom-radio>span {
     display: flex;
@@ -72,11 +94,9 @@
 #customer-form input[type="radio"] {
     appearance: none;
     -webkit-appearance: none;
-    width: 26px;
-    height: 26px;
-    border: 2px solid #fff;
-    /* White border to make it pop against grey bg */
-    box-shadow: 0 0 0 2px #e1e1e1;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #ddd;
     border-radius: 50%;
     position: relative;
     cursor: pointer;
@@ -86,14 +106,15 @@
 }
 
 #customer-form input[type="radio"]:checked {
-    box-shadow: 0 0 0 2px #004595;
+    border-color: #004595;
+    background: #004595;
 }
 
 #customer-form input[type="radio"]:checked::after {
     content: '';
-    width: 12px;
-    height: 12px;
-    background: #004595;
+    width: 10px;
+    height: 10px;
+    background: #fff;
     border-radius: 50%;
     position: absolute;
     top: 50%;
@@ -104,7 +125,7 @@
 #customer-form .radio-label,
 #customer-form .custom-radio label {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     color: #333;
     margin: 0;
     cursor: pointer;
@@ -123,7 +144,7 @@
 @keyframes crfFadeIn {
     from {
         opacity: 0;
-        transform: translateY(-5px);
+        transform: translateY(10px);
     }
 
     to {
@@ -134,24 +155,21 @@
 
 /* Responsive */
 @media (max-width: 767px) {
+    #customer-form section {
+        margin: 0;
+    }
+
     #customer-form .form-control-row {
-        flex-direction: column;
-        padding-left: 10px;
-        padding-right: 10px;
+        width: 100% !important;
+        padding: 0;
     }
 
     #customer-form .form-control-row:has(input[name="is_professional"]) {
-        margin-left: 0;
-        margin-right: 0;
+        padding: 20px;
     }
 
-    #customer-form .form-control-label,
-    #customer-form .form-control-val {
-        width: 100%;
-    }
-
-    #customer-form .form-control-label {
-        margin-bottom: 15px;
-        padding-top: 0;
+    #customer-form .form-control-val .custom-radio {
+        flex-direction: column;
+        gap: 15px;
     }
 }
