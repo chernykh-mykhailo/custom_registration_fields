@@ -160,7 +160,6 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
             Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_SDI'));
-            Configuration::updateValue('CRF_TWO_COL_LAYOUT', (int)Tools::getValue('CRF_TWO_COL_LAYOUT'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -174,6 +173,7 @@ class Custom_registration_fields extends Module
             $(document).ready(function() {
                 $("#id_country").change(function() {
                     var id_country = $(this).val();
+                    var crf_ajax_url = "' . $this->context->link->getModuleLink($this->name, 'ajax') . '";
                     $.ajax({
                         type: "POST",
                         url: crf_ajax_url,
@@ -212,6 +212,84 @@ class Custom_registration_fields extends Module
                 });
             });
         </script>';
+    }
+
+    protected function renderFieldsConfigTable($fields_options)
+    {
+        // Get values for current country from DB or defaults
+        $id_country = (int)Tools::getValue('id_country', Configuration::get('PS_COUNTRY_DEFAULT'));
+        $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$id_country);
+        
+        $current_values = [];
+        if ($settings) {
+            $current_values['enabled_fields'] = json_decode($settings['enabled_fields'], true) ?: [];
+            $current_values['required_fields'] = json_decode($settings['required_fields'], true) ?: [];
+            $current_values['enabled_fields_private'] = json_decode($settings['enabled_fields_private'], true) ?: [];
+            $current_values['required_fields_private'] = json_decode($settings['required_fields_private'], true) ?: [];
+        }
+
+        $html = '<div class="row">
+            <div class="col-lg-6">
+                <div class="panel">
+                    <div class="panel-heading"><i class="icon-user"></i> ' . $this->l('PRIVATO') . '</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>' . $this->l('Field') . '</th>
+                                <th class="text-center">' . $this->l('Visible') . '</th>
+                                <th class="text-center">' . $this->l('Required') . '</th>
+                            </tr>
+                        </thead>
+                        <tbody>';
+        foreach ($fields_options as $option) {
+            $is_enabled = in_array($option['id'], $current_values['enabled_fields_private'] ?? []);
+            $is_required = in_array($option['id'], $current_values['required_fields_private'] ?? []);
+            $html .= '<tr>
+                <td>' . $option['name'] . '</td>
+                <td class="text-center">
+                    <input type="checkbox" name="enabled_fields_private_' . $option['id'] . '" value="1" ' . ($is_enabled ? 'checked' : '') . '>
+                </td>
+                <td class="text-center">
+                    <input type="checkbox" name="required_fields_private_' . $option['id'] . '" value="1" ' . ($is_required ? 'checked' : '') . '>
+                </td>
+            </tr>';
+        }
+        $html .= '</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="panel">
+                    <div class="panel-heading"><i class="icon-briefcase"></i> ' . $this->l('PROFESSIONISTA') . '</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>' . $this->l('Field') . '</th>
+                                <th class="text-center">' . $this->l('Visible') . '</th>
+                                <th class="text-center">' . $this->l('Required') . '</th>
+                            </tr>
+                        </thead>
+                        <tbody>';
+        foreach ($fields_options as $option) {
+            $is_enabled = in_array($option['id'], $current_values['enabled_fields'] ?? []);
+            $is_required = in_array($option['id'], $current_values['required_fields'] ?? []);
+            $html .= '<tr>
+                <td>' . $option['name'] . '</td>
+                <td class="text-center">
+                    <input type="checkbox" name="enabled_fields_' . $option['id'] . '" value="1" ' . ($is_enabled ? 'checked' : '') . '>
+                </td>
+                <td class="text-center">
+                    <input type="checkbox" name="required_fields_' . $option['id'] . '" value="1" ' . ($is_required ? 'checked' : '') . '>
+                </td>
+            </tr>';
+        }
+        $html .= '</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>';
+
+        return $html;
     }
 
     protected function renderForm()
@@ -299,17 +377,6 @@ class Custom_registration_fields extends Module
                         ],
                         'desc' => $this->l('For Professionals, require at least one electronic invoicing field.'),
                     ],
-                    [
-                        'type' => 'switch',
-                        'label' => $this->l('Two Columns Layout'),
-                        'name' => 'CRF_TWO_COL_LAYOUT',
-                        'is_bool' => true,
-                        'values' => [
-                            ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
-                            ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
-                        ],
-                        'desc' => $this->l('Show fields in two columns on desktop.'),
-                    ],
                 ],
                 'submit' => ['title' => $this->l('Save General Settings')],
             ],
@@ -333,44 +400,9 @@ class Custom_registration_fields extends Module
                         ],
                     ],
                     [
-                        'type' => 'checkbox',
-                        'label' => $this->l('Fields visible for PRIVATO'),
-                        'name' => 'enabled_fields_private',
-                        'values' => [
-                            'query' => $fields_options,
-                            'id' => 'id',
-                            'name' => 'name',
-                        ],
-                    ],
-                    [
-                        'type' => 'checkbox',
-                        'label' => $this->l('Fields REQUIRED for PRIVATO'),
-                        'name' => 'required_fields_private',
-                        'values' => [
-                            'query' => $fields_options,
-                            'id' => 'id',
-                            'name' => 'name',
-                        ],
-                    ],
-                    [
-                        'type' => 'checkbox',
-                        'label' => $this->l('Fields visible for PROFESSIONISTA'),
-                        'name' => 'enabled_fields',
-                        'values' => [
-                            'query' => $fields_options,
-                            'id' => 'id',
-                            'name' => 'name',
-                        ],
-                    ],
-                    [
-                        'type' => 'checkbox',
-                        'label' => $this->l('Fields REQUIRED for PROFESSIONISTA'),
-                        'name' => 'required_fields',
-                        'values' => [
-                            'query' => $fields_options,
-                            'id' => 'id',
-                            'name' => 'name',
-                        ],
+                        'type' => 'html',
+                        'name' => 'fields_config_html',
+                        'html_content' => $this->renderFieldsConfigTable($fields_options),
                     ],
                 ],
                 'submit' => ['title' => $this->l('Save Country Settings')],
@@ -397,7 +429,6 @@ class Custom_registration_fields extends Module
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
         $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
         $helper->fields_value['CRF_REQ_PEC_OR_SDI'] = Configuration::get('CRF_REQ_PEC_OR_SDI');
-        $helper->fields_value['CRF_TWO_COL_LAYOUT'] = Configuration::get('CRF_TWO_COL_LAYOUT');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
@@ -433,7 +464,6 @@ class Custom_registration_fields extends Module
         Media::addJsDef([
             'crf_ajax_url' => $this->context->link->getModuleLink($this->name, 'ajax'),
             'crf_default_country' => (int)Configuration::get('PS_COUNTRY_DEFAULT'),
-            'crf_two_col' => (int)Configuration::get('CRF_TWO_COL_LAYOUT'),
             'crf_google_maps_key' => Configuration::get('GOOGLE_MAPS_API_KEY'),
             'crf_labels' => [
                 'cf_private' => $this->l('Codice Fiscale'),
@@ -516,43 +546,29 @@ class Custom_registration_fields extends Module
             ->setName('crf_container_start')
             ->setType('hidden');
 
-        $req_hint = Configuration::get('CRF_REQ_PEC_OR_SDI') ? ' (' . $this->l('Almeno uno obbligatorio') . ')' : '';
-
         $fields[] = (new FormField())
             ->setName('pec')
             ->setType('text')
             ->setRequired(in_array('pec', $req_priv))
-            ->setLabel($this->l('PEC') . $req_hint);
+            ->setLabel($this->l('PEC'));
 
         $fields[] = (new FormField())
             ->setName('codice_destinatario')
             ->setType('text')
             ->setRequired(in_array('codice_destinatario', $req_priv))
-            ->setLabel($this->l('Codice destinatario') . $req_hint);
-
-        $fields[] = (new FormField())
-            ->setName('phone_mobile')
-            ->setType('text')
-            ->setRequired(in_array('phone_mobile', $req_priv))
-            ->setLabel($this->l('Telefono secondario'));
-
-        $fields[] = (new FormField())
-            ->setName('id_state')
-            ->setType('select')
-            ->setRequired(in_array('id_state', $req_priv))
-            ->setLabel($this->l('Province'));
-
-        $fields[] = (new FormField())
-            ->setName('city')
-            ->setType('text')
-            ->setRequired(in_array('city', $req_priv))
-            ->setLabel($this->l('City'));
+            ->setLabel($this->l('Codice destinatario'));
 
         $fields[] = (new FormField())
             ->setName('phone')
             ->setType('text')
             ->setRequired(in_array('phone', $req_priv))
             ->setLabel($this->l('Telefono principale'));
+
+        $fields[] = (new FormField())
+            ->setName('phone_mobile')
+            ->setType('text')
+            ->setRequired(in_array('phone_mobile', $req_priv))
+            ->setLabel($this->l('Telefono secondario'));
 
         $fields[] = (new FormField())
             ->setName('address1')
@@ -565,6 +581,12 @@ class Custom_registration_fields extends Module
             ->setType('text')
             ->setRequired(in_array('city', $req_priv))
             ->setLabel($this->l('City'));
+
+        $fields[] = (new FormField())
+            ->setName('id_state')
+            ->setType('select')
+            ->setRequired(in_array('id_state', $req_priv))
+            ->setLabel($this->l('Province'));
 
         $fields[] = (new FormField())
             ->setName('postcode')

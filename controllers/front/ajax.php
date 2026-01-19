@@ -56,6 +56,7 @@ class Custom_registration_fieldsAjaxModuleFrontController extends ModuleFrontCon
             'required' => $settings['required_fields'],
             'enabled_private' => $settings['enabled_fields_private'],
             'required_private' => $settings['required_fields_private'],
+            'req_pec_sdi' => (int)Configuration::get('CRF_REQ_PEC_OR_SDI'),
             'states' => $states_list
         ]));
     }

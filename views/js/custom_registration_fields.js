@@ -7,11 +7,6 @@ $(document).ready(function () {
     const $form = $('#customer-form');
     if (!$form.length) return;
 
-    // Apply layout class
-    if (typeof crf_two_col !== 'undefined' && crf_two_col) {
-        $form.addClass('crf-two-columns');
-    }
-
     const getFieldRow = (name) => {
         const $el = $('input[name="' + name + '"], select[name="' + name + '"]');
         const $row = $el.closest('.form-control-row, .form-group');
@@ -21,6 +16,8 @@ $(document).ready(function () {
             if ($comment.length && !$row.data('original-comment')) {
                 $row.data('original-comment', $comment.text());
             }
+            // Add data attribute for CSS
+            $row.attr('data-field-name', name);
         }
         return $row;
     };
@@ -35,7 +32,8 @@ $(document).ready(function () {
         phone_mobile: getFieldRow('phone_mobile'),
         address1: getFieldRow('address1'),
         city: getFieldRow('city'),
-        postcode: getFieldRow('postcode')
+        postcode: getFieldRow('postcode'),
+        id_state: getFieldRow('id_state')
     };
 
     function updateFields() {
@@ -94,13 +92,13 @@ $(document).ready(function () {
                     $stateSelect.empty();
 
                     if (settings.states && settings.states.length > 0) {
-                        $stateSelect.append('<option value="">' + (isProf ? 'Seleziona provincia' : 'Seleziona provincia') + '</option>');
+                        $stateSelect.append('<option value="">Seleziona provincia</option>');
                         settings.states.forEach(state => {
                             $stateSelect.append('<option value="' + state.id + '">' + state.name + '</option>');
                         });
 
-                        if ($stateRow.hasClass('crf-visible')) {
-                            $stateRow.show();
+                        if ($stateRow && $stateRow.hasClass('crf-visible')) {
+                            $stateRow.show().removeClass('crf-hidden');
                         }
 
                         // Initialize Select2 for searching
@@ -117,6 +115,18 @@ $(document).ready(function () {
                             $stateSelect.select2('destroy');
                         }
                         $stateRow.removeClass('crf-visible').addClass('crf-hidden').hide();
+                    }
+                }
+
+                // 3. Handle Invoicing note
+                $('.crf-invoicing-note').remove();
+                if (isProf && settings.req_pec_sdi) {
+                    const $pecRow = $fields['pec'];
+                    const $sdiRow = $fields['codice_destinatario'];
+
+                    if (($pecRow && $pecRow.hasClass('crf-visible')) || ($sdiRow && $sdiRow.hasClass('crf-visible'))) {
+                        const noteText = 'Almeno uno tra PEC e Codice Destinatario è obbligatorio.';
+                        $pecRow.before('<div class="crf-invoicing-note">' + noteText + '</div>');
                     }
                 }
             }
@@ -139,26 +149,19 @@ $(document).ready(function () {
         const cityInput = document.querySelector('input[name="city"]');
         if (!cityInput) return;
 
-        // Create the autocomplete object, restricting the search to cities and addresses
         autocomplete = new google.maps.places.Autocomplete(cityInput, {
             types: ['(cities)'],
         });
 
-        // When the user selects an address from the dropdown, populate the address fields in the form.
         autocomplete.addListener('place_changed', fillInAddress);
-
         updateAutocompleteCountry();
     }
 
     function updateAutocompleteCountry() {
         if (!autocomplete) return;
         const idCountry = $('select[name="id_country"]').val() || $('input[name="id_country"]').val();
-
-        // Get ISO code 
-        let isoCode = 'it'; // default
+        let isoCode = 'it';
         const countryText = $('select[name="id_country"] option:selected').text().toLowerCase();
-
-        // Simple mapping for common countries, can be expanded or fetched from server if needed
         const isoMapping = { 'italy': 'it', 'italia': 'it', 'france': 'fr', 'francia': 'fr', 'spain': 'es', 'spagna': 'es', 'germany': 'de', 'germania': 'de' };
         for (let key in isoMapping) {
             if (countryText.includes(key)) {
@@ -166,7 +169,6 @@ $(document).ready(function () {
                 break;
             }
         }
-
         autocomplete.setComponentRestrictions({ country: isoCode });
     }
 
@@ -180,24 +182,16 @@ $(document).ready(function () {
 
         for (const component of place.address_components) {
             const componentType = component.types[0];
-
             switch (componentType) {
-                case "locality":
-                    city = component.long_name;
-                    break;
-                case "postal_code":
-                    postcode = component.long_name;
-                    break;
-                case "administrative_area_level_2": // Province for Italy
-                    stateName = component.long_name;
-                    break;
+                case "locality": city = component.long_name; break;
+                case "postal_code": postcode = component.long_name; break;
+                case "administrative_area_level_2": stateName = component.long_name; break;
             }
         }
 
         if (city) $('input[name="city"]').val(city);
         if (postcode) $('input[name="postcode"]').val(postcode).trigger('change');
 
-        // Try to match the province (state) from the dropdown
         if (stateName) {
             const $stateSelect = $('select[name="id_state"]');
             $stateSelect.find('option').each(function () {
@@ -216,15 +210,12 @@ $(document).ready(function () {
 
     $(document).on('change', 'input[name="is_professional"]', updateFields);
 
-    // Initial run
     updateFields();
 
-    // Wait for Google Maps to load if key exists
     if (crf_google_maps_key) {
         setTimeout(initAutocomplete, 1000);
     }
 
-    // Profile completion message
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('complete_profile')) {
         const msgText = 'Per favore, completa il tuo profilo con i dati mancanti per procedere.';
@@ -234,4 +225,3 @@ $(document).ready(function () {
         }
     }
 });
-
