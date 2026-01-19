@@ -108,6 +108,14 @@ class Custom_registration_fields extends Module
             }
         }
 
+        // Also check settings table for new columns
+        $checkPrivate = Db::getInstance()->executeS('SHOW COLUMNS FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` LIKE "enabled_fields_private"');
+        if (empty($checkPrivate)) {
+            Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'custom_registration_fields_country` 
+                ADD `enabled_fields_private` TEXT,
+                ADD `required_fields_private` TEXT');
+        }
+
         return true;
     }
 
@@ -346,9 +354,11 @@ class Custom_registration_fields extends Module
                 'required_fields_private' => 'required_fields_private'
             ];
             foreach ($map as $dbKey => $fieldKey) {
-                $decoded = json_decode($settings[$dbKey], true);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $f) $helper->fields_value[$fieldKey . '_' . $f] = true;
+                if (isset($settings[$dbKey]) && !empty($settings[$dbKey])) {
+                    $decoded = json_decode($settings[$dbKey], true);
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $f) $helper->fields_value[$fieldKey . '_' . $f] = true;
+                    }
                 }
             }
         }
