@@ -1,29 +1,27 @@
 /**
  * 2007-2026 PrestaShop
- *
- * NOTICE OF LICENSE
- *
- * This source file is subject to the Academic Free License (AFL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://opensource.org/licenses/afl-3.0.php
+ * Custom Registration Fields Logic - Premium & Dynamic
  */
 
 $(document).ready(function () {
     const $form = $('#customer-form');
     if (!$form.length) return;
 
-    const $isProfessional = $('input[name="is_professional"]');
+    const getFieldRow = (name) => {
+        const $el = $('input[name="' + name + '"], select[name="' + name + '"]');
+        return $el.closest('.form-control-row, .form-group');
+    };
+
     const $fields = {
-        ragione_sociale: $('input[name="ragione_sociale"]').closest('.form-group'),
-        codice_fiscale: $('input[name="codice_fiscale"]').closest('.form-group'),
-        piva: $('input[name="piva"]').closest('.form-group'),
-        pec: $('input[name="pec"]').closest('.form-group'),
-        codice_destinatario: $('input[name="codice_destinatario"]').closest('.form-group')
+        ragione_sociale: getFieldRow('ragione_sociale'),
+        codice_fiscale: getFieldRow('codice_fiscale'),
+        piva: getFieldRow('piva'),
+        pec: getFieldRow('pec'),
+        codice_destinatario: getFieldRow('codice_destinatario')
     };
 
     function updateFields() {
-        const isProf = parseInt($('input[name="is_professional"]:checked').val());
+        const isProf = parseInt($('input[name="is_professional"]:checked').val()) === 1;
         const idCountry = $('select[name="id_country"]').val() || $('input[name="id_country"]').val();
 
         if (!idCountry) {
@@ -38,41 +36,42 @@ $(document).ready(function () {
             success: function (settings) {
                 hideAllFields();
 
-                settings.enabled_fields.forEach(field => {
-                    if ($fields[field]) {
-                        // Logic for Professional vs Private
-                        if (isProf) {
-                            $fields[field].show();
-                        } else {
-                            // In Private mode, usually only Codice Fiscale is shown if enabled
-                            if (field === 'codice_fiscale') {
-                                $fields[field].show();
-                            }
-                        }
-                    }
-                });
+                const enabledFields = isProf ? settings.enabled : settings.enabled_private;
 
-                // Mark required fields visually if needed, though PrestaShop handles this via FormField
+                if (enabledFields) {
+                    enabledFields.forEach(field => {
+                        const $row = $fields[field];
+                        if ($row && $row.length) {
+                            $row.addClass('crf-visible').removeClass('crf-hidden');
+                        }
+                    });
+                }
+            },
+            error: function () {
+                if (isProf) {
+                    Object.values($fields).forEach($f => $f.addClass('crf-visible').removeClass('crf-hidden'));
+                }
             }
         });
     }
 
     function hideAllFields() {
-        Object.values($fields).forEach($f => $f.hide());
+        Object.values($fields).forEach($f => {
+            if ($f && $f.length) {
+                $f.addClass('crf-hidden').removeClass('crf-visible');
+            }
+        });
     }
 
-    $isProfessional.on('change', updateFields);
-    $('select[name="id_country"]').on('change', updateFields);
+    $(document).on('change', 'input[name="is_professional"]', updateFields);
+    $(document).on('change', 'select[name="id_country"]', updateFields);
 
-    // Initial run
     updateFields();
 
-    // Google Login completion reminder
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('complete_profile')) {
-        const $msg = $('<div class="alert alert-info">' +
-            'Per favore, completa il tuo profilo con i dati mancanti (Codice Fiscale, P.IVA, ecc.) per procedere.' +
-            '</div>');
+        const msgText = 'Per favore, completa il tuo profilo con i dati mancanti per procedere.';
+        const $msg = $('<div class="alert alert-info">' + msgText + '</div>');
         $form.prepend($msg);
     }
 });

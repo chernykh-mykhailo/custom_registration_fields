@@ -29,14 +29,23 @@ class Custom_registration_fieldsAjaxModuleFrontController extends ModuleFrontCon
         if ($settings) {
             $settings['enabled_fields'] = json_decode($settings['enabled_fields'], true);
             $settings['required_fields'] = json_decode($settings['required_fields'], true);
+            $settings['enabled_fields_private'] = json_decode($settings['enabled_fields_private'] ?? '[]', true);
+            $settings['required_fields_private'] = json_decode($settings['required_fields_private'] ?? '[]', true);
         } else {
             $settings = [
                 'enabled_fields' => [],
                 'required_fields' => [],
+                'enabled_fields_private' => [],
+                'required_fields_private' => [],
             ];
         }
 
         header('Content-Type: application/json');
-        die(json_encode($settings));
+        die(json_encode([
+            'enabled' => $settings['enabled_fields'],
+            'required' => $settings['required_fields'],
+            'enabled_private' => $settings['enabled_fields_private'],
+            'required_private' => $settings['required_fields_private'],
+        ]));
     }
 }

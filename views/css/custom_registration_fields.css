@@ -1,58 +1,157 @@
 /**
  * 2007-2026 PrestaShop
- *
- * Custom Registration Fields Styling
+ * Custom Registration Fields Styling - Premium & Responsive
  */
 
-#customer-form .form-group {
-    margin-bottom: 25px;
+/* Form Row Layout */
+#customer-form .form-control-row {
+    margin-bottom: 20px;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 10px 0;
 }
 
-#customer-form label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 8px;
-    display: block;
+/* Specific styling for the Account Type row to match screenshot */
+#customer-form .form-control-row:has(input[name="is_professional"]) {
+    background: #f0f0f0;
+    padding: 20px;
+    margin-left: -20px;
+    margin-right: -20px;
 }
 
-#customer-form input[type="text"] {
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    padding: 12px 15px;
+#customer-form .form-control-label {
+    text-transform: uppercase;
+    font-weight: 700;
     font-size: 14px;
-    transition: all 0.3s ease;
+    color: #333;
+    width: 35%;
+    margin-bottom: 0px;
+    padding-top: 12px;
+}
+
+#customer-form .form-control-val {
+    width: 65%;
+}
+
+/* Input Styling */
+#customer-form .form-control {
+    border: 1px solid #e1e1e1;
+    border-radius: 4px;
+    padding: 12px 15px;
+    font-size: 15px;
+    background: #fff;
+    color: #333;
+    box-shadow: none;
+    transition: all 0.2s ease;
+    height: auto;
     width: 100%;
 }
 
-#customer-form input[type="text"]:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.2);
-    outline: none;
+#customer-form .form-control:focus {
+    border-color: #004595;
+    background-color: #fff;
 }
 
-/* Toggle Switch Styling for Account Type */
-.is_professional_container {
+/* Radio Buttons Container */
+#customer-form .form-control-val .custom-radio {
     display: flex;
-    gap: 30px;
-    margin-bottom: 30px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 10px;
+    flex-direction: column;
+    gap: 15px;
 }
 
-.is_professional_container label {
+/* Radio Button Styling to match screenshot */
+#customer-form .radio-field,
+#customer-form .custom-radio>span {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     cursor: pointer;
-    font-size: 16px;
+}
+
+#customer-form input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    border: 2px solid #fff;
+    /* White border to make it pop against grey bg */
+    box-shadow: 0 0 0 2px #e1e1e1;
+    border-radius: 50%;
     position: relative;
-    padding-left: 30px;
+    cursor: pointer;
+    background: #fff;
+    margin: 0;
+    transition: all 0.2s ease;
 }
 
-/* Simple animation for showing/hiding fields */
-.form-group {
-    transition: opacity 0.4s ease, transform 0.4s ease;
+#customer-form input[type="radio"]:checked {
+    box-shadow: 0 0 0 2px #004595;
 }
 
-.form-group[style*="display: none"] {
-    opacity: 0;
-    transform: translateY(-10px);
+#customer-form input[type="radio"]:checked::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: #004595;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#customer-form .radio-label,
+#customer-form .custom-radio label {
+    font-weight: 700;
+    font-size: 16px;
+    color: #333;
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Field Visibility & Transitions */
+.crf-hidden {
+    display: none !important;
+}
+
+.crf-visible {
+    display: flex !important;
+    animation: crfFadeIn 0.4s ease-out;
+}
+
+@keyframes crfFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+    #customer-form .form-control-row {
+        flex-direction: column;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    #customer-form .form-control-row:has(input[name="is_professional"]) {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    #customer-form .form-control-label,
+    #customer-form .form-control-val {
+        width: 100%;
+    }
+
+    #customer-form .form-control-label {
+        margin-bottom: 15px;
+        padding-top: 0;
+    }
 }

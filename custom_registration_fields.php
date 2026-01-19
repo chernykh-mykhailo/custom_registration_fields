@@ -68,6 +68,8 @@ class Custom_registration_fields extends Module
                 `id_country` INT(11) UNSIGNED NOT NULL,
                 `enabled_fields` TEXT,
                 `required_fields` TEXT,
+                `enabled_fields_private` TEXT,
+                `required_fields_private` TEXT,
                 PRIMARY KEY (`id_country`)
             ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;',
         ];
@@ -115,33 +117,36 @@ class Custom_registration_fields extends Module
 
         if (Tools::isSubmit('submit' . $this->name)) {
             $id_country = (int)Tools::getValue('id_country');
-            
-            // HelperForm handles checkboxes with suffixes like _codice_fiscale
             $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva'];
-            $enabled = [];
-            $required = [];
+            
+            $enabled_prof = [];
+            $required_prof = [];
+            $enabled_priv = [];
+            $required_priv = [];
             
             foreach ($fields_list as $f) {
-                if (Tools::getValue('enabled_fields_' . $f)) {
-                    $enabled[] = $f;
-                }
-                if (Tools::getValue('required_fields_' . $f)) {
-                    $required[] = $f;
-                }
+                if (Tools::getValue('enabled_fields_' . $f)) $enabled_prof[] = $f;
+                if (Tools::getValue('required_fields_' . $f)) $required_prof[] = $f;
+                if (Tools::getValue('enabled_fields_private_' . $f)) $enabled_priv[] = $f;
+                if (Tools::getValue('required_fields_private_' . $f)) $required_priv[] = $f;
             }
 
             Db::getInstance()->execute('
                 REPLACE INTO `' . _DB_PREFIX_ . 'custom_registration_fields_country`
-                (`id_country`, `enabled_fields`, `required_fields`)
+                (`id_country`, `enabled_fields`, `required_fields`, `enabled_fields_private`, `required_fields_private`)
                 VALUES (
                     ' . (int)$id_country . ',
-                    "' . pSQL(json_encode($enabled)) . '",
-                    "' . pSQL(json_encode($required)) . '"
+                    "' . pSQL(json_encode($enabled_prof)) . '",
+                    "' . pSQL(json_encode($required_prof)) . '",
+                    "' . pSQL(json_encode($enabled_priv)) . '",
+                    "' . pSQL(json_encode($required_priv)) . '"
                 )
             ');
 
             Configuration::updateValue('GOOGLE_CLIENT_ID', Tools::getValue('GOOGLE_CLIENT_ID'));
             Configuration::updateValue('GOOGLE_CLIENT_SECRET', Tools::getValue('GOOGLE_CLIENT_SECRET'));
+            Configuration::updateValue('CRF_GROUP_PRIVATE', (int)Tools::getValue('CRF_GROUP_PRIVATE'));
+            Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -168,12 +173,26 @@ class Custom_registration_fields extends Module
                             $("input[name^=\'enabled_fields_\']").prop("checked", false);
                             $("input[name^=\'required_fields_\']").prop("checked", false);
                             
-                            data.enabled.forEach(function(f) {
-                                $("input[name=\'enabled_fields_" + f + "\']").prop("checked", true);
-                            });
-                            data.required.forEach(function(f) {
-                                $("input[name=\'required_fields_" + f + "\']").prop("checked", true);
-                            });
+                            if (data.enabled) {
+                                data.enabled.forEach(function(f) {
+                                    $("input[name=\'enabled_fields_" + f + "\']").prop("checked", true);
+                                });
+                            }
+                            if (data.required) {
+                                data.required.forEach(function(f) {
+                                    $("input[name=\'required_fields_" + f + "\']").prop("checked", true);
+                                });
+                            }
+                            if (data.enabled_private) {
+                                data.enabled_private.forEach(function(f) {
+                                    $("input[name=\'enabled_fields_private_" + f + "\']").prop("checked", true);
+                                });
+                            }
+                            if (data.required_private) {
+                                data.required_private.forEach(function(f) {
+                                    $("input[name=\'required_fields_private_" + f + "\']").prop("checked", true);
+                                });
+                            }
                         }
                     });
                 });
@@ -184,6 +203,8 @@ class Custom_registration_fields extends Module
     protected function renderForm()
     {
         $countries = Country::getCountries($this->context->language->id, false);
+        $groups = Group::getGroups($this->context->language->id);
+
         $fields_options = [
             ['id' => 'codice_fiscale', 'name' => $this->l('Codice Fiscale')],
             ['id' => 'pec', 'name' => $this->l('PEC')],
@@ -192,13 +213,33 @@ class Custom_registration_fields extends Module
             ['id' => 'piva', 'name' => $this->l('P.IVA')],
         ];
 
-        $fields_form_google = [
+        $fields_form_general = [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('Google Login Configuration'),
-                    'icon' => 'icon-google',
+                    'title' => $this->l('General Settings & Groups'),
+                    'icon' => 'icon-cogs',
                 ],
                 'input' => [
+                    [
+                        'type' => 'select',
+                        'label' => $this->l('Group for "Privato"'),
+                        'name' => 'CRF_GROUP_PRIVATE',
+                        'options' => [
+                            'query' => $groups,
+                            'id' => 'id_group',
+                            'name' => 'name',
+                        ],
+                    ],
+                    [
+                        'type' => 'select',
+                        'label' => $this->l('Group for "Professionista"'),
+                        'name' => 'CRF_GROUP_PROFESSIONAL',
+                        'options' => [
+                            'query' => $groups,
+                            'id' => 'id_group',
+                            'name' => 'name',
+                        ],
+                    ],
                     [
                         'type' => 'text',
                         'label' => $this->l('Google Client ID'),
@@ -211,14 +252,14 @@ class Custom_registration_fields extends Module
                         'name' => 'GOOGLE_CLIENT_SECRET',
                     ],
                 ],
-                'submit' => ['title' => $this->l('Save Google Settings')],
+                'submit' => ['title' => $this->l('Save General Settings')],
             ],
         ];
 
         $fields_form_country = [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('Professional Fields Per Country'),
+                    'title' => $this->l('Fields Per Country Configuration'),
                     'icon' => 'icon-globe',
                 ],
                 'input' => [
@@ -234,7 +275,27 @@ class Custom_registration_fields extends Module
                     ],
                     [
                         'type' => 'checkbox',
-                        'label' => $this->l('Fields visible for "Professionista"'),
+                        'label' => $this->l('Fields visible for PRIVATO'),
+                        'name' => 'enabled_fields_private',
+                        'values' => [
+                            'query' => $fields_options,
+                            'id' => 'id',
+                            'name' => 'name',
+                        ],
+                    ],
+                    [
+                        'type' => 'checkbox',
+                        'label' => $this->l('Fields REQUIRED for PRIVATO'),
+                        'name' => 'required_fields_private',
+                        'values' => [
+                            'query' => $fields_options,
+                            'id' => 'id',
+                            'name' => 'name',
+                        ],
+                    ],
+                    [
+                        'type' => 'checkbox',
+                        'label' => $this->l('Fields visible for PROFESSIONISTA'),
                         'name' => 'enabled_fields',
                         'values' => [
                             'query' => $fields_options,
@@ -244,7 +305,7 @@ class Custom_registration_fields extends Module
                     ],
                     [
                         'type' => 'checkbox',
-                        'label' => $this->l('Fields REQUIRED for "Professionista"'),
+                        'label' => $this->l('Fields REQUIRED for PROFESSIONISTA'),
                         'name' => 'required_fields',
                         'values' => [
                             'query' => $fields_options,
@@ -272,21 +333,27 @@ class Custom_registration_fields extends Module
         $helper->fields_value['id_country'] = $default_country;
         $helper->fields_value['GOOGLE_CLIENT_ID'] = Configuration::get('GOOGLE_CLIENT_ID');
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
+        $helper->fields_value['CRF_GROUP_PRIVATE'] = Configuration::get('CRF_GROUP_PRIVATE');
+        $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
         if ($settings) {
-            $enabled = json_decode($settings['enabled_fields'], true);
-            $required = json_decode($settings['required_fields'], true);
-            if (is_array($enabled)) {
-                foreach ($enabled as $f) $helper->fields_value['enabled_fields_' . $f] = true;
-            }
-            if (is_array($required)) {
-                foreach ($required as $f) $helper->fields_value['required_fields_' . $f] = true;
+            $map = [
+                'enabled_fields' => 'enabled_fields',
+                'required_fields' => 'required_fields',
+                'enabled_fields_private' => 'enabled_fields_private',
+                'required_fields_private' => 'required_fields_private'
+            ];
+            foreach ($map as $dbKey => $fieldKey) {
+                $decoded = json_decode($settings[$dbKey], true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $f) $helper->fields_value[$fieldKey . '_' . $f] = true;
+                }
             }
         }
 
-        return $helper->generateForm([$fields_form_google, $fields_form_country]);
+        return $helper->generateForm([$fields_form_general, $fields_form_country]);
     }
 
     public function hookHeader()
@@ -302,8 +369,18 @@ class Custom_registration_fields extends Module
     public function hookAdditionalCustomerFormFields($params)
     {
         $fields = [];
+        $id_lang = $this->context->language->id;
+        $id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT');
         
-        // Add Private/Professional toggle first
+        // Load settings for the default country to set initial "required" states
+        $settings = Db::getInstance()->getRow('
+            SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
+            WHERE `id_country` = ' . (int)$id_country
+        );
+        $req_priv = $settings ? json_decode($settings['required_fields_private'] ?? '[]', true) : [];
+        if (!is_array($req_priv)) $req_priv = [];
+
+        // 1. Account Type (Privato / Professionista)
         $fields[] = (new FormField())
             ->setName('is_professional')
             ->setType('radio-buttons')
@@ -312,12 +389,36 @@ class Custom_registration_fields extends Module
             ->addAvailableValue(1, $this->l('Professionista'))
             ->setValue(0);
 
-        // Core fields that we'll show/hide via JS based on country and type
-        $fields[] = (new FormField())->setName('ragione_sociale')->setType('text')->setLabel($this->l('Ragione Sociale'));
-        $fields[] = (new FormField())->setName('codice_fiscale')->setType('text')->setLabel($this->l('Codice Fiscale'));
-        $fields[] = (new FormField())->setName('piva')->setType('text')->setLabel($this->l('P.IVA'));
-        $fields[] = (new FormField())->setName('pec')->setType('text')->setLabel($this->l('PEC (opzionale)'));
-        $fields[] = (new FormField())->setName('codice_destinatario')->setType('text')->setLabel($this->l('Codice destinatario (opzionale)'));
+        // 2. Professional/Custom Fields
+        $fields[] = (new FormField())
+            ->setName('ragione_sociale')
+            ->setType('text')
+            ->setRequired(in_array('ragione_sociale', $req_priv))
+            ->setLabel($this->l('Ragione Sociale'));
+
+        $fields[] = (new FormField())
+            ->setName('codice_fiscale')
+            ->setType('text')
+            ->setRequired(in_array('codice_fiscale', $req_priv))
+            ->setLabel($this->l('Codice Fiscale'));
+
+        $fields[] = (new FormField())
+            ->setName('piva')
+            ->setType('text')
+            ->setRequired(in_array('piva', $req_priv))
+            ->setLabel($this->l('P.IVA'));
+
+        $fields[] = (new FormField())
+            ->setName('pec')
+            ->setType('text')
+            ->setRequired(in_array('pec', $req_priv))
+            ->setLabel($this->l('PEC (opzionale)'));
+
+        $fields[] = (new FormField())
+            ->setName('codice_destinatario')
+            ->setType('text')
+            ->setRequired(in_array('codice_destinatario', $req_priv))
+            ->setLabel($this->l('Codice destinatario (opzionale)'));
 
         return $fields;
     }
@@ -333,20 +434,20 @@ class Custom_registration_fields extends Module
             WHERE `id_country` = ' . (int)$id_country
         );
 
-        if (!$settings) {
-            return;
+        if ($settings) {
+            $required_prof = json_decode($settings['required_fields'], true);
+            $required_priv = json_decode($settings['required_fields_private'] ?? '[]', true);
+            $required_fields = $is_professional ? $required_prof : $required_priv;
+        } else {
+            $required_fields = [];
         }
 
-        $required_fields = json_decode($settings['required_fields'], true);
-
         foreach ($fields as $field) {
-            if ($is_professional && in_array($field->getName(), $required_fields)) {
+            if (is_array($required_fields) && in_array($field->getName(), $required_fields)) {
                 if (empty($field->getValue())) {
                     $field->addError($this->l('This field is required.'));
                 }
             }
-            
-            // Special validation for Codice Fiscale or P.IVA can be added here
         }
     }
 
@@ -357,14 +458,33 @@ class Custom_registration_fields extends Module
             return;
         }
 
-        $customer->is_professional = (int)Tools::getValue('is_professional');
+        $is_professional = (int)Tools::getValue('is_professional');
+        
+        $customer->is_professional = $is_professional;
         $customer->ragione_sociale = Tools::getValue('ragione_sociale');
         $customer->codice_fiscale = Tools::getValue('codice_fiscale');
         $customer->pec = Tools::getValue('pec');
         $customer->codice_destinatario = Tools::getValue('codice_destinatario');
         $customer->piva = Tools::getValue('piva');
         
-        $customer->update();
+        // Handle Group Assignment
+        $id_group = 1; // Default
+        if ($is_professional) {
+            $id_group = (int)Configuration::get('CRF_GROUP_PROFESSIONAL');
+        } else {
+            $id_group = (int)Configuration::get('CRF_GROUP_PRIVATE');
+        }
+
+        if ($id_group) {
+            $customer->id_default_group = $id_group;
+            $customer->update(); // Save standard fields first
+            
+            // Sync with ps_customer_group table
+            $customer->cleanGroups();
+            $customer->addGroups([$id_group]);
+        } else {
+            $customer->update();
+        }
     }
 
     public function hookDisplayAdminCustomers($params)
