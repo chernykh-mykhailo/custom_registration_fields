@@ -1,0 +1,58 @@
+/**
+ * 2007-2026 PrestaShop
+ *
+ * Custom Registration Fields Styling
+ */
+
+#customer-form .form-group {
+    margin-bottom: 25px;
+}
+
+#customer-form label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    display: block;
+}
+
+#customer-form input[type="text"] {
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 12px 15px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+#customer-form input[type="text"]:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.2);
+    outline: none;
+}
+
+/* Toggle Switch Styling for Account Type */
+.is_professional_container {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.is_professional_container label {
+    cursor: pointer;
+    font-size: 16px;
+    position: relative;
+    padding-left: 30px;
+}
+
+/* Simple animation for showing/hiding fields */
+.form-group {
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.form-group[style*="display: none"] {
+    opacity: 0;
+    transform: translateY(-10px);
+}
