@@ -19,6 +19,7 @@ $(document).ready(function () {
         pec: getFieldRow('pec'),
         codice_destinatario: getFieldRow('codice_destinatario'),
         phone: getFieldRow('phone'),
+        phone_mobile: getFieldRow('phone_mobile'),
         address1: getFieldRow('address1'),
         city: getFieldRow('city'),
         postcode: getFieldRow('postcode')

@@ -99,6 +99,7 @@ class Custom_registration_fields extends Module
             'ragione_sociale' => 'VARCHAR(255) DEFAULT NULL',
             'piva' => 'VARCHAR(255) DEFAULT NULL',
             'phone' => 'VARCHAR(32) DEFAULT NULL',
+            'phone_mobile' => 'VARCHAR(32) DEFAULT NULL',
             'google_id' => 'VARCHAR(255) DEFAULT NULL',
         ];
 
@@ -126,7 +127,7 @@ class Custom_registration_fields extends Module
 
         if (Tools::isSubmit('submit' . $this->name)) {
             $id_country = (int)Tools::getValue('id_country');
-            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva', 'phone', 'address1', 'city', 'postcode'];
+            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva', 'phone', 'phone_mobile', 'address1', 'city', 'postcode'];
             
             $enabled_prof = [];
             $required_prof = [];
@@ -156,6 +157,7 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('GOOGLE_CLIENT_SECRET', Tools::getValue('GOOGLE_CLIENT_SECRET'));
             Configuration::updateValue('CRF_GROUP_PRIVATE', (int)Tools::getValue('CRF_GROUP_PRIVATE'));
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
+            Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -220,7 +222,8 @@ class Custom_registration_fields extends Module
             ['id' => 'codice_destinatario', 'name' => $this->l('Codice Destinatario')],
             ['id' => 'ragione_sociale', 'name' => $this->l('Ragione Sociale')],
             ['id' => 'piva', 'name' => $this->l('P.IVA')],
-            ['id' => 'phone', 'name' => $this->l('Telephone')],
+            ['id' => 'phone', 'name' => $this->l('Telefono principale')],
+            ['id' => 'phone_mobile', 'name' => $this->l('Telefono secondario')],
             ['id' => 'address1', 'name' => $this->l('Address')],
             ['id' => 'city', 'name' => $this->l('City')],
             ['id' => 'postcode', 'name' => $this->l('Postcode')],
@@ -263,6 +266,17 @@ class Custom_registration_fields extends Module
                         'type' => 'text',
                         'label' => $this->l('Google Client Secret'),
                         'name' => 'GOOGLE_CLIENT_SECRET',
+                    ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Hide Social Title (Gender)'),
+                        'name' => 'CRF_HIDE_GENDER',
+                        'is_bool' => true,
+                        'values' => [
+                            ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
+                            ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
+                        ],
+                        'desc' => $this->l('Hide Mr./Mrs. selection from registration form'),
                     ],
                 ],
                 'submit' => ['title' => $this->l('Save General Settings')],
@@ -346,8 +360,8 @@ class Custom_registration_fields extends Module
         $helper->fields_value['id_country'] = $default_country;
         $helper->fields_value['GOOGLE_CLIENT_ID'] = Configuration::get('GOOGLE_CLIENT_ID');
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
-        $helper->fields_value['CRF_GROUP_PRIVATE'] = Configuration::get('CRF_GROUP_PRIVATE');
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
+        $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
@@ -386,6 +400,15 @@ class Custom_registration_fields extends Module
     {
         $fields = [];
         $id_lang = $this->context->language->id;
+
+        // Hide unwanted standard PrestaShop fields if configured
+        if (Configuration::get('CRF_HIDE_GENDER')) {
+            foreach ($params['fields'] as $f) {
+                if ($f->getName() == 'id_gender') {
+                    $f->setType('hidden');
+                }
+            }
+        }
         $id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT');
         
         // Load settings for the default country to set initial "required" states
@@ -430,7 +453,7 @@ class Custom_registration_fields extends Module
             ->setName('codice_fiscale')
             ->setType('text')
             ->setRequired(in_array('codice_fiscale', $req_priv))
-            ->setLabel($this->l('Codice Fiscale'));
+            ->setLabel($this->l('Codice Fiscale dell\'azienda'));
 
         $fields[] = (new FormField())
             ->setName('piva')
@@ -451,10 +474,16 @@ class Custom_registration_fields extends Module
             ->setLabel($this->l('Codice destinatario (opzionale)'));
 
         $fields[] = (new FormField())
+            ->setName('phone_mobile')
+            ->setType('text')
+            ->setRequired(in_array('phone_mobile', $req_priv))
+            ->setLabel($this->l('Telefono secondario'));
+
+        $fields[] = (new FormField())
             ->setName('phone')
             ->setType('text')
             ->setRequired(in_array('phone', $req_priv))
-            ->setLabel($this->l('Telephone'));
+            ->setLabel($this->l('Telefono principale'));
 
         $fields[] = (new FormField())
             ->setName('address1')
@@ -559,6 +588,7 @@ class Custom_registration_fields extends Module
             $address->city = Tools::getValue('city');
             $address->postcode = Tools::getValue('postcode');
             $address->phone = Tools::getValue('phone');
+            $address->phone_mobile = Tools::getValue('phone_mobile');
             $address->company = Tools::getValue('ragione_sociale');
             $address->vat_number = Tools::getValue('piva');
             $address->dni = Tools::getValue('codice_fiscale');
