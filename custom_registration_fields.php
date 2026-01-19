@@ -159,6 +159,7 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
             Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_SDI'));
+            Configuration::updateValue('CRF_TWO_COL_LAYOUT', (int)Tools::getValue('CRF_TWO_COL_LAYOUT'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -225,6 +226,7 @@ class Custom_registration_fields extends Module
             ['id' => 'piva', 'name' => $this->l('P.IVA')],
             ['id' => 'phone', 'name' => $this->l('Telefono principale')],
             ['id' => 'phone_mobile', 'name' => $this->l('Telefono secondario')],
+            ['id' => 'id_state', 'name' => $this->l('Province')],
             ['id' => 'address1', 'name' => $this->l('Address')],
             ['id' => 'city', 'name' => $this->l('City')],
             ['id' => 'postcode', 'name' => $this->l('Postcode')],
@@ -269,6 +271,12 @@ class Custom_registration_fields extends Module
                         'name' => 'GOOGLE_CLIENT_SECRET',
                     ],
                     [
+                        'type' => 'text',
+                        'label' => $this->l('Google Maps API Key'),
+                        'name' => 'GOOGLE_MAPS_API_KEY',
+                        'desc' => $this->l('Required for City/Address Autocomplete. Enable "Places API" in Google Cloud Console.'),
+                    ],
+                    [
                         'type' => 'switch',
                         'label' => $this->l('Hide Social Title (Gender)'),
                         'name' => 'CRF_HIDE_GENDER',
@@ -289,6 +297,17 @@ class Custom_registration_fields extends Module
                             ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
                         ],
                         'desc' => $this->l('For Professionals, require at least one electronic invoicing field.'),
+                    ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Two Columns Layout'),
+                        'name' => 'CRF_TWO_COL_LAYOUT',
+                        'is_bool' => true,
+                        'values' => [
+                            ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
+                            ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
+                        ],
+                        'desc' => $this->l('Show fields in two columns on desktop.'),
                     ],
                 ],
                 'submit' => ['title' => $this->l('Save General Settings')],
@@ -376,6 +395,7 @@ class Custom_registration_fields extends Module
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
         $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
         $helper->fields_value['CRF_REQ_PEC_OR_SDI'] = Configuration::get('CRF_REQ_PEC_OR_SDI');
+        $helper->fields_value['CRF_TWO_COL_LAYOUT'] = Configuration::get('CRF_TWO_COL_LAYOUT');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
@@ -404,10 +424,24 @@ class Custom_registration_fields extends Module
         $this->context->controller->addJS($this->_path . 'views/js/custom_registration_fields.js');
         $this->context->controller->addCSS($this->_path . 'views/css/custom_registration_fields.css');
         
+        // Add Select2 for searchable dropdowns
+        $this->context->controller->addCSS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 'all', null, false);
+        $this->context->controller->addJS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', false);
+
         Media::addJsDef([
             'crf_ajax_url' => $this->context->link->getModuleLink($this->name, 'ajax'),
             'crf_default_country' => (int)Configuration::get('PS_COUNTRY_DEFAULT'),
+            'crf_two_col' => (int)Configuration::get('CRF_TWO_COL_LAYOUT'),
+            'crf_google_maps_key' => Configuration::get('GOOGLE_MAPS_API_KEY'),
+            'crf_labels' => [
+                'cf_private' => $this->l('Codice Fiscale'),
+                'cf_prof' => $this->l('Codice Fiscale dell\'azienda')
+            ]
         ]);
+
+        if (Configuration::get('GOOGLE_MAPS_API_KEY')) {
+            $this->context->controller->addJS('https://maps.googleapis.com/maps/api/js?key=' . Configuration::get('GOOGLE_MAPS_API_KEY') . '&libraries=places');
+        }
     }
 
     public function hookAdditionalCustomerFormFields($params)
@@ -475,6 +509,11 @@ class Custom_registration_fields extends Module
             ->setRequired(in_array('piva', $req_priv))
             ->setLabel($this->l('P.IVA'));
 
+        // Wrap these fields in a container for grid layout
+        $fields[] = (new FormField())
+            ->setName('crf_container_start')
+            ->setType('hidden');
+
         $req_hint = Configuration::get('CRF_REQ_PEC_OR_SDI') ? ' (' . $this->l('Almeno uno obbligatorio') . ')' : '';
 
         $fields[] = (new FormField())
@@ -494,6 +533,18 @@ class Custom_registration_fields extends Module
             ->setType('text')
             ->setRequired(in_array('phone_mobile', $req_priv))
             ->setLabel($this->l('Telefono secondario'));
+
+        $fields[] = (new FormField())
+            ->setName('id_state')
+            ->setType('select')
+            ->setRequired(in_array('id_state', $req_priv))
+            ->setLabel($this->l('Province'));
+
+        $fields[] = (new FormField())
+            ->setName('city')
+            ->setType('text')
+            ->setRequired(in_array('city', $req_priv))
+            ->setLabel($this->l('City'));
 
         $fields[] = (new FormField())
             ->setName('phone')
@@ -518,6 +569,10 @@ class Custom_registration_fields extends Module
             ->setType('text')
             ->setRequired(in_array('postcode', $req_priv))
             ->setLabel($this->l('Postcode'));
+
+        $fields[] = (new FormField())
+            ->setName('crf_container_end')
+            ->setType('hidden');
 
         return $fields;
     }
@@ -626,6 +681,7 @@ class Custom_registration_fields extends Module
             $address->firstname = $customer->firstname;
             $address->address1 = $address1;
             $address->city = Tools::getValue('city');
+            $address->id_state = (int)Tools::getValue('id_state');
             $address->postcode = Tools::getValue('postcode');
             $address->phone = Tools::getValue('phone');
             $address->phone_mobile = Tools::getValue('phone_mobile');

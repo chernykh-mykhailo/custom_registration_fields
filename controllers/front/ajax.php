@@ -40,12 +40,23 @@ class Custom_registration_fieldsAjaxModuleFrontController extends ModuleFrontCon
             ];
         }
 
+        // Fetch states for this country
+        $states = State::getStatesByIdCountry($id_country);
+        $states_list = [];
+        foreach ($states as $state) {
+            $states_list[] = [
+                'id' => $state['id_state'],
+                'name' => $state['name']
+            ];
+        }
+
         header('Content-Type: application/json');
         die(json_encode([
             'enabled' => $settings['enabled_fields'],
             'required' => $settings['required_fields'],
             'enabled_private' => $settings['enabled_fields_private'],
             'required_private' => $settings['required_fields_private'],
+            'states' => $states_list
         ]));
     }
 }
