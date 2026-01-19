@@ -127,7 +127,7 @@ class Custom_registration_fields extends Module
 
         if (Tools::isSubmit('submit' . $this->name)) {
             $id_country = (int)Tools::getValue('id_country');
-            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva', 'phone', 'phone_mobile', 'address1', 'city', 'postcode'];
+            $fields_list = ['codice_fiscale', 'pec', 'codice_destinatario', 'ragione_sociale', 'piva', 'phone', 'phone_mobile', 'id_state', 'address1', 'city', 'postcode'];
             
             $enabled_prof = [];
             $required_prof = [];
@@ -155,6 +155,7 @@ class Custom_registration_fields extends Module
 
             Configuration::updateValue('GOOGLE_CLIENT_ID', Tools::getValue('GOOGLE_CLIENT_ID'));
             Configuration::updateValue('GOOGLE_CLIENT_SECRET', Tools::getValue('GOOGLE_CLIENT_SECRET'));
+            Configuration::updateValue('GOOGLE_MAPS_API_KEY', Tools::getValue('GOOGLE_MAPS_API_KEY'));
             Configuration::updateValue('CRF_GROUP_PRIVATE', (int)Tools::getValue('CRF_GROUP_PRIVATE'));
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
@@ -391,6 +392,7 @@ class Custom_registration_fields extends Module
         $helper->fields_value['id_country'] = $default_country;
         $helper->fields_value['GOOGLE_CLIENT_ID'] = Configuration::get('GOOGLE_CLIENT_ID');
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
+        $helper->fields_value['GOOGLE_MAPS_API_KEY'] = Configuration::get('GOOGLE_MAPS_API_KEY');
         $helper->fields_value['CRF_GROUP_PRIVATE'] = Configuration::get('CRF_GROUP_PRIVATE');
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
         $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
