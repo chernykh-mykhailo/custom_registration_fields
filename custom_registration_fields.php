@@ -158,6 +158,7 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('CRF_GROUP_PRIVATE', (int)Tools::getValue('CRF_GROUP_PRIVATE'));
             Configuration::updateValue('CRF_GROUP_PROFESSIONAL', (int)Tools::getValue('CRF_GROUP_PROFESSIONAL'));
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
+            Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_DI'));
 
             $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
         }
@@ -278,6 +279,17 @@ class Custom_registration_fields extends Module
                         ],
                         'desc' => $this->l('Hide Mr./Mrs. selection from registration form'),
                     ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Require PEC or Codice Destinatario'),
+                        'name' => 'CRF_REQ_PEC_OR_DI',
+                        'is_bool' => true,
+                        'values' => [
+                            ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
+                            ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
+                        ],
+                        'desc' => $this->l('For Professionals, require at least one electronic invoicing field.'),
+                    ],
                 ],
                 'submit' => ['title' => $this->l('Save General Settings')],
             ],
@@ -362,6 +374,7 @@ class Custom_registration_fields extends Module
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
         $helper->fields_value['CRF_GROUP_PROFESSIONAL'] = Configuration::get('CRF_GROUP_PROFESSIONAL');
         $helper->fields_value['CRF_HIDE_GENDER'] = Configuration::get('CRF_HIDE_GENDER');
+        $helper->fields_value['CRF_REQ_PEC_OR_DI'] = Configuration::get('CRF_REQ_PEC_OR_SDI');
 
         // Load values for the default country
         $settings = Db::getInstance()->getRow('SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country` WHERE `id_country` = ' . (int)$default_country);
@@ -461,17 +474,19 @@ class Custom_registration_fields extends Module
             ->setRequired(in_array('piva', $req_priv))
             ->setLabel($this->l('P.IVA'));
 
+        $req_hint = Configuration::get('CRF_REQ_PEC_OR_SDI') ? ' (' . $this->l('Almeno uno obbligatorio') . ')' : '';
+
         $fields[] = (new FormField())
             ->setName('pec')
             ->setType('text')
             ->setRequired(in_array('pec', $req_priv))
-            ->setLabel($this->l('PEC (opzionale)'));
+            ->setLabel($this->l('PEC') . $req_hint);
 
         $fields[] = (new FormField())
             ->setName('codice_destinatario')
             ->setType('text')
             ->setRequired(in_array('codice_destinatario', $req_priv))
-            ->setLabel($this->l('Codice destinatario (opzionale)'));
+            ->setLabel($this->l('Codice destinatario') . $req_hint);
 
         $fields[] = (new FormField())
             ->setName('phone_mobile')
@@ -525,6 +540,25 @@ class Custom_registration_fields extends Module
             $required_fields = [];
         }
 
+        // Special rule for Professionals: At least one of PEC or Codice Destinatario must be filled
+        if ($is_professional && Configuration::get('CRF_REQ_PEC_OR_SDI')) {
+            $pec = '';
+            $sdi = '';
+            foreach ($fields as $field) {
+                if ($field->getName() == 'pec') $pec = $field->getValue();
+                if ($field->getName() == 'codice_destinatario') $sdi = $field->getValue();
+            }
+
+            if (empty($pec) && empty($sdi)) {
+                $error_msg = $this->l('You must provide either PEC or Codice Destinatario.');
+                foreach ($fields as $field) {
+                    if ($field->getName() == 'pec' || $field->getName() == 'codice_destinatario') {
+                        $field->addError($error_msg);
+                    }
+                }
+            }
+        }
+
         foreach ($fields as $field) {
             if (is_array($required_fields) && in_array($field->getName(), $required_fields)) {
                 if (empty($field->getValue())) {
@@ -542,17 +576,24 @@ class Custom_registration_fields extends Module
         }
 
         $is_professional = (int)Tools::getValue('is_professional');
+        $phone_mobile = Tools::getValue('phone_mobile');
         
-        $customer->is_professional = $is_professional;
-        $customer->ragione_sociale = Tools::getValue('ragione_sociale');
-        $customer->codice_fiscale = Tools::getValue('codice_fiscale');
-        $customer->pec = Tools::getValue('pec');
-        $customer->codice_destinatario = Tools::getValue('codice_destinatario');
-        $customer->piva = Tools::getValue('piva');
-        $customer->phone = Tools::getValue('phone');
+        // Manual SQL update because core Customer class doesn't know about our fields
+        Db::getInstance()->execute('
+            UPDATE `' . _DB_PREFIX_ . 'customer` 
+            SET `is_professional` = ' . (int)$is_professional . ',
+                `ragione_sociale` = "' . pSQL(Tools::getValue('ragione_sociale')) . '",
+                `codice_fiscale` = "' . pSQL(Tools::getValue('codice_fiscale')) . '",
+                `pec` = "' . pSQL(Tools::getValue('pec')) . '",
+                `codice_destinatario` = "' . pSQL(Tools::getValue('codice_destinatario')) . '",
+                `piva` = "' . pSQL(Tools::getValue('piva')) . '",
+                `phone` = "' . pSQL(Tools::getValue('phone')) . '",
+                `phone_mobile` = "' . pSQL($phone_mobile) . '"
+            WHERE `id_customer` = ' . (int)$customer->id
+        );
         
         // Handle Group Assignment
-        $id_group = 1; // Default
+        $id_group = 0;
         if ($is_professional) {
             $id_group = (int)Configuration::get('CRF_GROUP_PROFESSIONAL');
         } else {
@@ -561,13 +602,11 @@ class Custom_registration_fields extends Module
 
         if ($id_group) {
             $customer->id_default_group = $id_group;
-            $customer->update(); // Save standard fields first
+            $customer->update(); 
             
-            // Sync with ps_customer_group table
+            // Clean existing groups and add ONLY the selected one
             $customer->cleanGroups();
             $customer->addGroups([$id_group]);
-        } else {
-            $customer->update();
         }
 
         // Create Address if address fields are provided
@@ -599,22 +638,18 @@ class Custom_registration_fields extends Module
     public function hookDisplayAdminCustomers($params)
     {
         $id_customer = (int)$params['id_customer'];
-        $customer = new Customer($id_customer);
+        $custom_data = Db::getInstance()->getRow('
+            SELECT is_professional, ragione_sociale, codice_fiscale, piva, pec, codice_destinatario, phone, phone_mobile 
+            FROM `' . _DB_PREFIX_ . 'customer` 
+            WHERE `id_customer` = ' . (int)$id_customer
+        );
 
-        if (!Validate::isLoadedObject($customer)) {
+        if (!$custom_data) {
             return '';
         }
 
         $this->context->smarty->assign([
-            'customer_crf' => [
-                'is_professional' => $customer->is_professional,
-                'ragione_sociale' => $customer->ragione_sociale,
-                'codice_fiscale' => $customer->codice_fiscale,
-                'piva' => $customer->piva,
-                'pec' => $customer->pec,
-                'codice_destinatario' => $customer->codice_destinatario,
-                'phone' => $customer->phone,
-            ],
+            'customer_crf' => $custom_data,
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/customer_fields.tpl');
@@ -627,7 +662,12 @@ class Custom_registration_fields extends Module
     {
         $formBuilder = $params['form_builder'];
         $id_customer = (int)$params['id'];
-        $customer = new Customer($id_customer);
+        
+        $custom_data = Db::getInstance()->getRow('
+            SELECT is_professional, ragione_sociale, codice_fiscale, piva, pec, codice_destinatario, phone, phone_mobile 
+            FROM `' . _DB_PREFIX_ . 'customer` 
+            WHERE `id_customer` = ' . (int)$id_customer
+        ) ?: [];
 
         $formBuilder->add('is_professional', \Symfony\Component\Form\Extension\Core\Type\ChoiceType::class, [
             'label' => $this->l('Account Type'),
@@ -636,43 +676,49 @@ class Custom_registration_fields extends Module
                 $this->l('Professionista') => 1,
             ],
             'required' => true,
-            'data' => (int)$customer->is_professional,
+            'data' => (int)($custom_data['is_professional'] ?? 0),
         ]);
 
         $formBuilder->add('ragione_sociale', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('Ragione Sociale'),
             'required' => false,
-            'data' => $customer->ragione_sociale,
+            'data' => $custom_data['ragione_sociale'] ?? '',
         ]);
 
         $formBuilder->add('codice_fiscale', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('Codice Fiscale'),
             'required' => false,
-            'data' => $customer->codice_fiscale,
+            'data' => $custom_data['codice_fiscale'] ?? '',
         ]);
 
         $formBuilder->add('piva', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('P.IVA'),
             'required' => false,
-            'data' => $customer->piva,
+            'data' => $custom_data['piva'] ?? '',
         ]);
 
         $formBuilder->add('pec', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('PEC'),
             'required' => false,
-            'data' => $customer->pec,
+            'data' => $custom_data['pec'] ?? '',
         ]);
 
         $formBuilder->add('codice_destinatario', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('Codice Destinatario'),
             'required' => false,
-            'data' => $customer->codice_destinatario,
+            'data' => $custom_data['codice_destinatario'] ?? '',
         ]);
 
         $formBuilder->add('phone', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
             'label' => $this->l('Telephone'),
             'required' => false,
-            'data' => $customer->phone,
+            'data' => $custom_data['phone'] ?? '',
+        ]);
+
+        $formBuilder->add('phone_mobile', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
+            'label' => $this->l('Alternative Phone'),
+            'required' => false,
+            'data' => $custom_data['phone_mobile'] ?? '',
         ]);
 
         $formBuilder->add('address1', \Symfony\Component\Form\Extension\Core\Type\TextType::class, [
@@ -707,19 +753,20 @@ class Custom_registration_fields extends Module
     protected function handleAdminCustomerSave($params)
     {
         $id_customer = (int)$params['id'];
-        $customer = new Customer($id_customer);
         $formData = $params['form_data'];
 
-        if (Validate::isLoadedObject($customer)) {
-            $customer->is_professional = (int)$formData['is_professional'];
-            $customer->ragione_sociale = $formData['ragione_sociale'];
-            $customer->codice_fiscale = $formData['codice_fiscale'];
-            $customer->piva = $formData['piva'];
-            $customer->pec = $formData['pec'];
-            $customer->codice_destinatario = $formData['codice_destinatario'];
-            $customer->phone = $formData['phone'];
-            $customer->update();
-        }
+        Db::getInstance()->execute('
+            UPDATE `' . _DB_PREFIX_ . 'customer` 
+            SET `is_professional` = ' . (int)($formData['is_professional'] ?? 0) . ',
+                `ragione_sociale` = "' . pSQL($formData['ragione_sociale'] ?? '') . '",
+                `codice_fiscale` = "' . pSQL($formData['codice_fiscale'] ?? '') . '",
+                `piva` = "' . pSQL($formData['piva'] ?? '') . '",
+                `pec` = "' . pSQL($formData['pec'] ?? '') . '",
+                `codice_destinatario` = "' . pSQL($formData['codice_destinatario'] ?? '') . '",
+                `phone` = "' . pSQL($formData['phone'] ?? '') . '",
+                `phone_mobile` = "' . pSQL($formData['phone_mobile'] ?? '') . '"
+            WHERE `id_customer` = ' . (int)$id_customer
+        );
     }
 
     public function hookDisplayCustomerLoginForm()
