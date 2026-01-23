@@ -53,7 +53,8 @@ class Custom_registration_fields extends Module
             $this->registerHook('actionCustomerFormBuilderModifier') &&
             $this->registerHook('actionAfterCreateCustomerFormHandler') &&
             $this->registerHook('actionAfterUpdateCustomerFormHandler') &&
-            $this->alterCustomerTable();
+            $this->alterCustomerTable() &&
+            Configuration::updateValue('CRF_DB_V1', 1);
     }
 
     public function uninstall()
@@ -123,6 +124,7 @@ class Custom_registration_fields extends Module
 
     public function getContent()
     {
+        $this->alterCustomerTable();
         $output = '';
 
         if (Tools::isSubmit('submit' . $this->name)) {
@@ -658,6 +660,12 @@ class Custom_registration_fields extends Module
         $is_professional = (int)Tools::getValue('is_professional');
         $phone_mobile = Tools::getValue('phone_mobile');
         
+        // Ensure columns exist (handle case where module was updated but not reinstalled)
+        if (!Configuration::get('CRF_DB_V1')) {
+            $this->alterCustomerTable();
+            Configuration::updateValue('CRF_DB_V1', 1);
+        }
+
         // Manual SQL update because core Customer class doesn't know about our fields
         Db::getInstance()->execute('
             UPDATE `' . _DB_PREFIX_ . 'customer` 
