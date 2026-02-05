@@ -397,6 +397,16 @@ class Custom_registration_fields extends Module
                         ],
                     ],
                     [
+                        'type' => 'switch',
+                        'label' => $this->l('Enable Google Login'),
+                        'name' => 'GOOGLE_LOGIN_ENABLED',
+                        'is_bool' => true,
+                        'values' => [
+                            ['id' => 'active_on', 'value' => 1, 'label' => $this->l('Yes')],
+                            ['id' => 'active_off', 'value' => 0, 'label' => $this->l('No')],
+                        ],
+                    ],
+                    [
                         'type' => 'text',
                         'label' => $this->l('Google Client ID'),
                         'name' => 'GOOGLE_CLIENT_ID',
@@ -480,6 +490,7 @@ class Custom_registration_fields extends Module
 
         $default_country = Configuration::get('PS_COUNTRY_DEFAULT');
         $helper->fields_value['id_country'] = $default_country;
+        $helper->fields_value['GOOGLE_LOGIN_ENABLED'] = Configuration::get('GOOGLE_LOGIN_ENABLED');
         $helper->fields_value['GOOGLE_CLIENT_ID'] = Configuration::get('GOOGLE_CLIENT_ID');
         $helper->fields_value['GOOGLE_CLIENT_SECRET'] = Configuration::get('GOOGLE_CLIENT_SECRET');
         $helper->fields_value['GOOGLE_MAPS_API_KEY'] = Configuration::get('GOOGLE_MAPS_API_KEY');
@@ -778,6 +789,10 @@ class Custom_registration_fields extends Module
 
     protected function renderGoogleButton()
     {
+        if (!Configuration::get('GOOGLE_LOGIN_ENABLED')) {
+            return '';
+        }
+
         $clientId = Configuration::get('GOOGLE_CLIENT_ID');
         $clientSecret = Configuration::get('GOOGLE_CLIENT_SECRET');
 
