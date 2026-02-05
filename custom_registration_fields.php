@@ -205,8 +205,7 @@ class Custom_registration_fields extends Module
 
     protected function renderAdminJs()
     {
-        // Use the admin modules URL for AJAX to avoid front-office session issues
-        $ajax_url = $this->context->link->getAdminLink('AdminModules', true) . '&configure=' . $this->name . '&ajax=1&action=getCountrySettings';
+        $ajax_url = $this->context->link->getModuleLink($this->name, 'ajax', ['action' => 'getCountrySettings', 'ajax' => 1]);
         
         return '<script>
             $(document).ready(function() {
