@@ -48,6 +48,7 @@ class Custom_registration_fields extends Module
             $this->registerHook('additionalCustomerFormFields') &&
             $this->registerHook('validateCustomerFormFields') &&
             $this->registerHook('actionCustomerAccountAdd') &&
+            $this->registerHook('actionCustomerAccountUpdate') &&
             $this->registerHook('header') &&
             $this->registerHook('displayAdminCustomers') &&
             $this->registerHook('actionCustomerFormBuilderModifier') &&
@@ -125,6 +126,9 @@ class Custom_registration_fields extends Module
     public function getContent()
     {
         $this->alterCustomerTable();
+        // Register hooks if missing (for existing installations)
+        $this->registerHook('actionCustomerAccountUpdate');
+
         $output = '';
 
         if (Tools::isSubmit('submit' . $this->name)) {
@@ -482,6 +486,7 @@ class Custom_registration_fields extends Module
     {
         $fields = [];
         $id_lang = $this->context->language->id;
+        $customer = $this->context->customer;
 
         // Hide unwanted standard PrestaShop fields if configured
         if (Configuration::get('CRF_HIDE_GENDER')) {
@@ -493,6 +498,15 @@ class Custom_registration_fields extends Module
         }
         $id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT');
         
+        // Load custom data if customer is logged in
+        $custom_data = [];
+        if (Validate::isLoadedObject($customer)) {
+            $custom_data = Db::getInstance()->getRow('
+                SELECT * FROM `' . _DB_PREFIX_ . 'customer`
+                WHERE `id_customer` = ' . (int)$customer->id
+            ) ?: [];
+        }
+
         // Load settings for the default country to set initial "required" states
         $settings = Db::getInstance()->getRow('
             SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
@@ -508,7 +522,7 @@ class Custom_registration_fields extends Module
             ->setLabel($this->l('Account Type'))
             ->addAvailableValue(0, $this->l('Privato'))
             ->addAvailableValue(1, $this->l('Professionista'))
-            ->setValue(0);
+            ->setValue((int)($custom_data['is_professional'] ?? 0));
 
         // 2. Country Selector (Restored because the shop works with multiple countries)
         $countries = Country::getCountries($id_lang, true);
@@ -529,19 +543,22 @@ class Custom_registration_fields extends Module
             ->setName('ragione_sociale')
             ->setType('text')
             ->setRequired(in_array('ragione_sociale', $req_priv))
-            ->setLabel($this->l('Ragione Sociale'));
+            ->setLabel($this->l('Ragione Sociale'))
+            ->setValue($custom_data['ragione_sociale'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('codice_fiscale')
             ->setType('text')
             ->setRequired(in_array('codice_fiscale', $req_priv))
-            ->setLabel($this->l('Codice Fiscale dell\'azienda'));
+            ->setLabel($this->l('Codice Fiscale dell\'azienda'))
+            ->setValue($custom_data['codice_fiscale'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('piva')
             ->setType('text')
             ->setRequired(in_array('piva', $req_priv))
-            ->setLabel($this->l('P.IVA'));
+            ->setLabel($this->l('P.IVA'))
+            ->setValue($custom_data['piva'] ?? '');
 
         // Wrap these fields in a container for grid layout
         $fields[] = (new FormField())
@@ -552,49 +569,57 @@ class Custom_registration_fields extends Module
             ->setName('pec')
             ->setType('text')
             ->setRequired(in_array('pec', $req_priv))
-            ->setLabel($this->l('PEC'));
+            ->setLabel($this->l('PEC'))
+            ->setValue($custom_data['pec'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('codice_destinatario')
             ->setType('text')
             ->setRequired(in_array('codice_destinatario', $req_priv))
-            ->setLabel($this->l('Codice destinatario'));
+            ->setLabel($this->l('Codice destinatario'))
+            ->setValue($custom_data['codice_destinatario'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('phone')
             ->setType('text')
             ->setRequired(in_array('phone', $req_priv))
-            ->setLabel($this->l('Telefono principale'));
+            ->setLabel($this->l('Telefono principale'))
+            ->setValue($custom_data['phone'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('phone_mobile')
             ->setType('text')
             ->setRequired(in_array('phone_mobile', $req_priv))
-            ->setLabel($this->l('Telefono secondario'));
+            ->setLabel($this->l('Telefono secondario'))
+            ->setValue($custom_data['phone_mobile'] ?? '');
 
         $fields[] = (new FormField())
             ->setName('address1')
             ->setType('text')
             ->setRequired(in_array('address1', $req_priv))
-            ->setLabel($this->l('Address'));
+            ->setLabel($this->l('Address'))
+            ->setValue('');
 
         $fields[] = (new FormField())
             ->setName('city')
             ->setType('text')
             ->setRequired(in_array('city', $req_priv))
-            ->setLabel($this->l('City'));
+            ->setLabel($this->l('City'))
+            ->setValue('');
 
         $fields[] = (new FormField())
             ->setName('id_state')
             ->setType('select')
             ->setRequired(in_array('id_state', $req_priv))
-            ->setLabel($this->l('Province'));
+            ->setLabel($this->l('Province'))
+            ->setValue(0);
 
         $fields[] = (new FormField())
             ->setName('postcode')
             ->setType('text')
             ->setRequired(in_array('postcode', $req_priv))
-            ->setLabel($this->l('Postcode'));
+            ->setLabel($this->l('Postcode'))
+            ->setValue('');
 
         $fields[] = (new FormField())
             ->setName('crf_container_end')
@@ -652,7 +677,16 @@ class Custom_registration_fields extends Module
 
     public function hookActionCustomerAccountAdd($params)
     {
-        $customer = $params['newCustomer'];
+        $this->saveCustomerData($params['newCustomer']);
+    }
+
+    public function hookActionCustomerAccountUpdate($params)
+    {
+        $this->saveCustomerData($params['customer']);
+    }
+
+    protected function saveCustomerData($customer)
+    {
         if (!($customer instanceof Customer)) {
             return;
         }
@@ -697,7 +731,7 @@ class Custom_registration_fields extends Module
             $customer->addGroups([$id_group]);
         }
 
-        // Create Address if address fields are provided
+        // Create Address if address fields are provided (only during registration, address1 is usually empty in Identity update)
         $address1 = Tools::getValue('address1');
         if (!empty($address1)) {
             $id_country = (int)Tools::getValue('id_country');
