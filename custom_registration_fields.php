@@ -51,6 +51,8 @@ class Custom_registration_fields extends Module
             $this->registerHook('actionCustomerAccountUpdate') &&
             $this->registerHook('header') &&
             $this->registerHook('displayAdminCustomers') &&
+            $this->registerHook('displayCustomerLoginFormAfter') &&
+            $this->registerHook('displayCustomerAccountForm') &&
             $this->registerHook('actionCustomerFormBuilderModifier') &&
             $this->registerHook('actionAfterCreateCustomerFormHandler') &&
             $this->registerHook('actionAfterUpdateCustomerFormHandler') &&
@@ -129,6 +131,8 @@ class Custom_registration_fields extends Module
         // Register hooks if missing (for existing installations)
         $this->registerHook('actionCustomerAccountUpdate');
         $this->registerHook('displayCustomerIdentityHeader');
+        $this->registerHook('displayCustomerLoginFormAfter');
+        $this->registerHook('displayCustomerAccountForm');
 
         if (Tools::getValue('ajax') && Tools::getValue('action') == 'getCountrySettings') {
             $this->ajaxProcessGetCountrySettings();
@@ -760,6 +764,59 @@ class Custom_registration_fields extends Module
                 $this->l('We\'ve pre-filled some information from your Google account. Please check your data and complete the missing fields (tax info, address) to enjoy a seamless shopping experience.') . '
             </div>';
         }
+    }
+
+    public function hookDisplayCustomerLoginFormAfter()
+    {
+        return $this->renderGoogleButton();
+    }
+
+    public function hookDisplayCustomerAccountForm()
+    {
+        return $this->renderGoogleButton();
+    }
+
+    protected function renderGoogleButton()
+    {
+        $clientId = Configuration::get('GOOGLE_CLIENT_ID');
+        $clientSecret = Configuration::get('GOOGLE_CLIENT_SECRET');
+
+        if (!$clientId || !$clientSecret) {
+            return '';
+        }
+
+        $googleUrl = $this->context->link->getModuleLink($this->name, 'googlelogin');
+
+        // Professional and modern styling for the button
+        return '
+        <div class="google-login-container" style="margin: 20px 0; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
+            <p style="margin-bottom: 15px; color: #777; font-size: 14px;">' . $this->l('Or login with') . '</p>
+            <a href="' . $googleUrl . '" class="btn google-login-btn" style="
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: #fff;
+                color: #444;
+                border: 1px solid #dadce0;
+                padding: 10px 24px;
+                border-radius: 4px;
+                text-decoration: none;
+                font-family: \'Roboto\', arial, sans-serif;
+                font-weight: 500;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                transition: background 0.2s, box-shadow 0.2s;
+            ">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" alt="Google" style="width: 18px; height: 18px; margin-right: 12px;">
+                <span>' . $this->l('Sign in with Google') . '</span>
+            </a>
+            <style>
+                .google-login-btn:hover {
+                    background: #f8f9fa !important;
+                    box-shadow: 0 1px 8px rgba(0,0,0,0.12) !important;
+                    color: #222 !important;
+                }
+            </style>
+        </div>';
     }
 
     protected function saveCustomerData($customer)
