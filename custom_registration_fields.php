@@ -128,6 +128,7 @@ class Custom_registration_fields extends Module
         $this->alterCustomerTable();
         // Register hooks if missing (for existing installations)
         $this->registerHook('actionCustomerAccountUpdate');
+        $this->registerHook('displayCustomerIdentityHeader');
 
         if (Tools::getValue('ajax') && Tools::getValue('action') == 'getCountrySettings') {
             $this->ajaxProcessGetCountrySettings();
@@ -747,6 +748,18 @@ class Custom_registration_fields extends Module
     public function hookActionCustomerAccountUpdate($params)
     {
         $this->saveCustomerData($params['customer']);
+    }
+
+    public function hookDisplayCustomerIdentityHeader()
+    {
+        if (isset($this->context->cookie->is_new_google_user) && $this->context->cookie->is_new_google_user) {
+            unset($this->context->cookie->is_new_google_user);
+            
+            return '<div class="alert alert-info">
+                <strong>' . $this->l('Welcome!') . '</strong> ' . 
+                $this->l('We\'ve pre-filled some information from your Google account. Please check your data and complete the missing fields (tax info, address) to enjoy a seamless shopping experience.') . '
+            </div>';
+        }
     }
 
     protected function saveCustomerData($customer)

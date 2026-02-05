@@ -83,9 +83,13 @@ class Custom_registration_fieldsGoogleloginModuleFrontController extends ModuleF
         $this->context->updateCustomer($customer);
 
         // 5. Redirection Logic
-        if (empty($customer->codice_fiscale)) {
+        $is_new = empty($customer->codice_fiscale) && empty($customer->ragione_sociale);
+        
+        if ($is_new) {
+            // Set flag in cookie or session to show a message on the profile page
+            $this->context->cookie->is_new_google_user = 1;
             // Redirect to profile page to complete info
-            Tools::redirect($this->context->link->getPageLink('identity', true) . '?complete_profile=1');
+            Tools::redirect($this->context->link->getPageLink('identity', true));
         } else {
             Tools::redirect('index.php');
         }
