@@ -129,6 +129,10 @@ class Custom_registration_fields extends Module
         // Register hooks if missing (for existing installations)
         $this->registerHook('actionCustomerAccountUpdate');
 
+        if (Tools::getValue('ajax') && Tools::getValue('action') == 'getCountrySettings') {
+            $this->ajaxProcessGetCountrySettings();
+        }
+
         $output = '';
 
         if (Tools::isSubmit('submit' . $this->name)) {
@@ -167,29 +171,61 @@ class Custom_registration_fields extends Module
             Configuration::updateValue('CRF_HIDE_GENDER', (int)Tools::getValue('CRF_HIDE_GENDER'));
             Configuration::updateValue('CRF_REQ_PEC_OR_SDI', (int)Tools::getValue('CRF_REQ_PEC_OR_SDI'));
 
-            $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . Country::getNameById($this->context->language->id, $id_country));
+            $output .= $this->displayConfirmation($this->l('Settings updated successfully for ') . ($id_country == 0 ? $this->l('Default Settings') : Country::getNameById($this->context->language->id, $id_country)));
         }
 
         return $output . $this->renderAdminJs() . $this->renderForm();
     }
 
+    protected function ajaxProcessGetCountrySettings()
+    {
+        $id_country = (int)Tools::getValue('id_country');
+        
+        $settings = Db::getInstance()->getRow('
+            SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
+            WHERE `id_country` = ' . (int)$id_country
+        );
+
+        if ($settings) {
+            $enabled = json_decode($settings['enabled_fields'], true) ?: [];
+            $required = json_decode($settings['required_fields'], true) ?: [];
+            $enabled_private = json_decode($settings['enabled_fields_private'] ?? '[]', true) ?: [];
+            $required_private = json_decode($settings['required_fields_private'] ?? '[]', true) ?: [];
+        } else {
+            $enabled = $required = $enabled_private = $required_private = [];
+        }
+
+        die(json_encode([
+            'enabled' => $enabled,
+            'required' => $required,
+            'enabled_private' => $enabled_private,
+            'required_private' => $required_private,
+        ]));
+    }
+
     protected function renderAdminJs()
     {
+        // Use the admin modules URL for AJAX to avoid front-office session issues
+        $ajax_url = $this->context->link->getAdminLink('AdminModules', true) . '&configure=' . $this->name . '&ajax=1&action=getCountrySettings';
+        
         return '<script>
             $(document).ready(function() {
                 $("#id_country").change(function() {
                     var id_country = $(this).val();
-                    var crf_ajax_url = "' . $this->context->link->getModuleLink($this->name, 'ajax') . '";
+                    var crf_ajax_url = "' . $ajax_url . '";
+                    
+                    // Show a simple loading state (optional)
+                    $("#fields_config_html").css("opacity", "0.5");
+
                     $.ajax({
                         type: "POST",
                         url: crf_ajax_url,
                         data: {
-                            action: "getCountrySettings",
-                            id_country: id_country,
-                            ajax: 1
+                            id_country: id_country
                         },
-                        success: function(response) {
-                            var data = JSON.parse(response);
+                        dataType: "json",
+                        success: function(data) {
+                            // Clear ALL checkboxes in the config tables
                             $("input[name^=\'enabled_fields_\']").prop("checked", false);
                             $("input[name^=\'required_fields_\']").prop("checked", false);
                             
@@ -213,6 +249,12 @@ class Custom_registration_fields extends Module
                                     $("input[name=\'required_fields_private_" + f + "\']").prop("checked", true);
                                 });
                             }
+                            
+                            $("#fields_config_html").css("opacity", "1");
+                        },
+                        error: function() {
+                            alert("Error loading settings. Please refresh the page.");
+                            $("#fields_config_html").css("opacity", "1");
                         }
                     });
                 });
