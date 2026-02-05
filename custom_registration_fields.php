@@ -301,6 +301,12 @@ class Custom_registration_fields extends Module
     protected function renderForm()
     {
         $countries = Country::getCountries($this->context->language->id, false);
+        // Add "Default/Other Countries" option at the beginning
+        array_unshift($countries, [
+            'id_country' => 0,
+            'name' => $this->l('Default Settings (Other Countries)')
+        ]);
+
         $groups = Group::getGroups($this->context->language->id);
 
         $fields_options = [
@@ -507,11 +513,20 @@ class Custom_registration_fields extends Module
             ) ?: [];
         }
 
-        // Load settings for the default country to set initial "required" states
+        // Load settings: Try specific country, then fallback to ID 0 (Global Default)
+        $id_country_to_load = (int)Tools::getValue('id_country', $id_country);
         $settings = Db::getInstance()->getRow('
             SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
-            WHERE `id_country` = ' . (int)$id_country
+            WHERE `id_country` = ' . (int)$id_country_to_load
         );
+
+        if (!$settings && $id_country_to_load != 0) {
+            $settings = Db::getInstance()->getRow('
+                SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
+                WHERE `id_country` = 0
+            ');
+        }
+
         $req_priv = $settings ? json_decode($settings['required_fields_private'] ?? '[]', true) : [];
         if (!is_array($req_priv)) $req_priv = [];
 
@@ -634,10 +649,18 @@ class Custom_registration_fields extends Module
         $id_country = (int)Tools::getValue('id_country');
         $is_professional = (int)Tools::getValue('is_professional');
 
+        // Try specific country settings, fallback to global (ID 0)
         $settings = Db::getInstance()->getRow('
             SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
             WHERE `id_country` = ' . (int)$id_country
         );
+
+        if (!$settings && $id_country != 0) {
+            $settings = Db::getInstance()->getRow('
+                SELECT * FROM `' . _DB_PREFIX_ . 'custom_registration_fields_country`
+                WHERE `id_country` = 0
+            ');
+        }
 
         if ($settings) {
             $required_prof = json_decode($settings['required_fields'], true);
